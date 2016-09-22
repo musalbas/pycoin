@@ -12,8 +12,9 @@ from pycoin import encoding
 from pycoin.ecdsa import is_public_pair_valid, generator_secp256k1, public_pair_for_x, secp256k1
 from pycoin.serialize import b2h, h2b
 from pycoin.key import Key
+from pycoin.key.key_from_text import key_from_text
 from pycoin.key.BIP32Node import BIP32Node
-from pycoin.networks import full_network_name_for_netcode, network_name_for_netcode, NETWORK_NAMES
+from pycoin.networks import full_network_name_for_netcode, network_name_for_netcode, network_codes
 
 
 SEC_RE = re.compile(r"^(0[23][0-9a-fA-F]{64})|(04[0-9a-fA-F]{128})$")
@@ -172,11 +173,12 @@ def dump_output(output_dict, output_order):
 
 
 def main():
+    codes = network_codes()
     parser = argparse.ArgumentParser(
         description='Crypto coin utility ku ("key utility") to show'
         ' information about Bitcoin or other cryptocoin data structures.',
         epilog=('Known networks codes:\n  ' +
-                ', '.join(['%s (%s)' % (i, full_network_name_for_netcode(i)) for i in NETWORK_NAMES]))
+                ', '.join(['%s (%s)' % (i, full_network_name_for_netcode(i)) for i in codes]))
     )
     parser.add_argument('-w', "--wallet", help='show just Bitcoin wallet key', action='store_true')
     parser.add_argument('-W', "--wif", help='show just Bitcoin WIF', action='store_true')
@@ -192,9 +194,9 @@ def main():
 
     parser.add_argument('-s', "--subkey", help='subkey path (example: 0H/2/15-20)')
     parser.add_argument('-n', "--network", help='specify network (default: BTC = Bitcoin)',
-                        default='BTC', choices=NETWORK_NAMES)
+                        default='BTC', choices=codes)
     parser.add_argument("--override-network", help='override detected network type',
-                        default=None, choices=NETWORK_NAMES)
+                        default=None, choices=codes)
 
     parser.add_argument(
         'item', nargs="+", help='a BIP0032 wallet key string;'
@@ -204,6 +206,7 @@ def main():
         ' the literal string "create" to create a new wallet key using strong entropy sources;'
         ' P:wallet passphrase (NOT RECOMMENDED);'
         ' H:wallet passphrase in hex (NOT RECOMMENDED);'
+        ' E:electrum value (either a master public, master private, or initial data);'
         ' secret_exponent (in decimal or hex);'
         ' x,y where x,y form a public pair (y is a number or one of the strings "even" or "odd");'
         ' hash160 (as 40 hex characters)')
@@ -225,10 +228,9 @@ def main():
         raise e
 
     PREFIX_TRANSFORMS = (
-        ("P:", lambda s:
-            BIP32Node.from_master_secret(s.encode("utf8"), netcode=args.network)),
-        ("H:", lambda s:
-            BIP32Node.from_master_secret(h2b(s), netcode=args.network)),
+        ("P:", lambda s: BIP32Node.from_master_secret(s.encode("utf8"), netcode=args.network)),
+        ("H:", lambda s: BIP32Node.from_master_secret(h2b(s), netcode=args.network)),
+        ("E:", lambda s: key_from_text(s)),
         ("create", _create),
     )
 

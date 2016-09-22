@@ -4,9 +4,10 @@ from ..convention import tx_fee
 
 from .Spendable import Spendable
 from .Tx import Tx
-from .TxOut import TxOut, standard_tx_out_script
+from .TxOut import TxOut
 from .pay_to import build_hash160_lookup
 from ..networks import wif_prefix_for_netcode
+from ..ui import standard_tx_out_script
 
 
 class SecretExponentMissing(Exception):
@@ -130,7 +131,7 @@ def distribute_from_split_pool(tx, fee):
 
     zero_count = sum(1 for tx_out in tx.txs_out if tx_out.coin_value == 0)
     if zero_count > 0:
-        total_coin_value = sum(spendable.coin_value for spendable in tx.txs_in_as_spendable())
+        total_coin_value = sum(spendable.coin_value for spendable in tx.unspents)
         coins_allocated = sum(tx_out.coin_value for tx_out in tx.txs_out) + fee
         remaining_coins = total_coin_value - coins_allocated
         if remaining_coins < 0:

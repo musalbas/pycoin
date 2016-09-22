@@ -35,6 +35,7 @@ from ..serialize import b2h, b2h_rev, h2b, h2b_rev
 from ..serialize.bitcoin_streamer import parse_struct, stream_struct
 from ..intbytes import byte_to_int, int_to_bytes
 
+from .exceptions import BadSpendableError, ValidationFailureError
 from .TxIn import TxIn
 from .TxOut import TxOut
 from .Spendable import Spendable
@@ -54,21 +55,13 @@ SIGHASH_SINGLE = 3
 SIGHASH_ANYONECANPAY = 0x80
 
 
-class ValidationFailureError(Exception):
-    pass
-
-
-class BadSpendableError(Exception):
-    pass
-
-
 class Tx(object):
     TxIn = TxIn
     TxOut = TxOut
     Spendable = Spendable
 
     MAX_MONEY = MAX_MONEY
-    MAX_BLOCK_SIZE = MAX_BLOCK_SIZE
+    MAX_TX_SIZE = MAX_BLOCK_SIZE
 
     SIGHASH_ALL = SIGHASH_ALL
     SIGHASH_NONE = SIGHASH_NONE
@@ -320,7 +313,7 @@ class Tx(object):
     def tx_outs_as_spendable(self, block_index_available=0):
         h = self.hash()
         return [
-            self.Spendable(tx_out.coin_value, tx_out.script, h, tx_out_index, block_index_available)
+            self.Spendable.from_tx_out(tx_out, h, tx_out_index, block_index_available)
             for tx_out_index, tx_out in enumerate(self.txs_out)]
 
     def is_coinbase(self):
@@ -335,15 +328,15 @@ class Tx(object):
             ", ".join(str(t) for t in self.txs_out))
 
     def _check_tx_inout_count(self):
-        if not self.txs_in:
-            raise ValidationFailureError("txs_in = []")
         if not self.txs_out:
             raise ValidationFailureError("txs_out = []")
+        if not self.is_coinbase() and not self.txs_in:
+            raise ValidationFailureError("txs_in = []")
 
     def _check_size_limit(self):
         size = len(self.as_bin())
-        if size > self.MAX_BLOCK_SIZE:
-            raise ValidationFailureError("size > MAX_BLOCK_SIZE")
+        if size > self.MAX_TX_SIZE:
+            raise ValidationFailureError("size > MAX_TX_SIZE")
 
     def _check_txs_out(self):
         # Check for negative or overflow output values
@@ -426,11 +419,6 @@ class Tx(object):
     def check_unspents(self):
         if self.missing_unspents():
             raise ValueError("wrong number of unspents. Call unspents_from_db or set_unspents.")
-
-    def txs_in_as_spendable(self):
-        return [
-            self.Spendable(tx_out.coin_value, tx_out.script, tx_in.previous_hash, tx_in.previous_index)
-            for tx_in, tx_out in zip(self.txs_in, self.unspents)]
 
     def stream_unspents(self, f):
         self.check_unspents()
