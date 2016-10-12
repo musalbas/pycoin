@@ -29,14 +29,21 @@ THE SOFTWARE.
 import functools
 import logging
 
+from ...encoding import double_sha256
 from ...intbytes import byte_to_int, int_to_bytes
+from ...serialize import b2h
 
 from . import opcodes
+from . import tools
 from . import ScriptError
 
 from .check_signature import op_checksig, op_checkmultisig
-from .flags import (VERIFY_P2SH, VERIFY_DISCOURAGE_UPGRADABLE_NOPS, VERIFY_MINIMALDATA,
-                    VERIFY_SIGPUSHONLY, VERIFY_CHECKLOCKTIMEVERIFY, VERIFY_CLEANSTACK)
+from .flags import (
+    VERIFY_P2SH, VERIFY_DISCOURAGE_UPGRADABLE_NOPS, VERIFY_MINIMALDATA,
+    VERIFY_SIGPUSHONLY, VERIFY_CHECKLOCKTIMEVERIFY, VERIFY_CLEANSTACK,
+    # VERIFY_CHECKSEQUENCEVERIFY,
+    VERIFY_WITNESS, VERIFY_DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM
+)
 from .microcode import MICROCODE_LOOKUP
 from .tools import get_opcode, bin_script, bool_from_script_bytes, int_from_script_bytes
 
@@ -265,14 +272,66 @@ def is_pay_to_script_hash(script_public_key):
             byte_to_int(script_public_key[-1]) == opcodes.OP_EQUAL)
 
 
+def witness_program_version(script):
+    l = len(script)
+    if l < 4 or l > 42:
+        return None
+    first_opcode = script[0]
+    if first_opcode == opcodes.OP_0:
+        return 0
+    if opcodes.OP_1 <= first_opcode <= opcodes.OP_16:
+        return first_opcode - opcodes.OP_1 + 1
+    return None
+
+
+def verify_witness_program(
+        witness, version, script_signature, flags, signature_for_hash_type_f,
+        lock_time, expected_hash_type, traceback_f):
+    if version == 0:
+        l = len(script_signature)
+        if l == 32:
+            if len(witness) == 0:
+                raise ScriptError("witness program empty")
+            script_public_key = witness[-1]
+            stack = witness[:-1]
+            if double_sha256(script_public_key) != script_signature:
+                raise ScriptError("witness program mismatch")
+        elif l == 20:
+            # special case for pay-to-pubkeyhash; signature + pubkey in witness
+            if len(witness) != 2:
+                raise ScriptError("witness program mismatch")
+            script_public_key = tools.compile(
+                "OP_DUP OP_HASH160 %s OP_EQUALVERIFY OP_CHECKSIG" % b2h(script_signature))
+            stack = witness
+        else:
+            raise ScriptError("witness program wrong length")
+    elif flags & VERIFY_DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM:
+        raise ScriptError("this version witness program not yet supported")
+    else:
+        return True
+
+    for s in stack:
+        if len(s) > 520:
+            raise ScriptError("pushing too much data onto stack")
+
+    eval_script(script_public_key, signature_for_hash_type_f, lock_time, expected_hash_type,
+                stack, traceback_f=traceback_f, flags=flags, is_signature=True)
+
+
+
 def verify_script(script_signature, script_public_key, signature_for_hash_type_f, lock_time,
-                  flags=None, expected_hash_type=None, traceback_f=None):
+                  flags=None, expected_hash_type=None, traceback_f=None, witness=None):
+    had_witness = False
+
+    if witness is None:
+        witness = []
+
     stack = Stack()
 
     is_p2h = is_pay_to_script_hash(script_public_key)
 
     if flags is None:
-        flags = VERIFY_P2SH
+        flags = VERIFY_P2SH | VERIFY_WITNESS
 
     if flags & VERIFY_SIGPUSHONLY:
         check_script_push_only(script_signature)
@@ -287,6 +346,20 @@ def verify_script(script_signature, script_public_key, signature_for_hash_type_f
 
         eval_script(script_public_key, signature_for_hash_type_f, lock_time, expected_hash_type,
                     stack, traceback_f=traceback_f, flags=flags, is_signature=False)
+
+        if flags & VERIFY_WITNESS:
+            witness_version = witness_program_version(script_public_key)
+            if witness_version is not None:
+                witness_program = script_public_key[2:]
+                if len(script_signature) > 0:
+                    raise ScriptError("script sig is not blank on segwit input")
+                if not verify_witness_program(
+                        witness, witness_version, witness_program, flags,
+                        signature_for_hash_type_f, lock_time, expected_hash_type,
+                        traceback_f):
+                    return False
+                stack = stack[:1]
+
     except ScriptError:
         return False
 

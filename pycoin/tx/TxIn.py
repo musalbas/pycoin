@@ -87,8 +87,8 @@ class TxIn(object):
 
     bitcoin_address = address
 
-    def verify(self, tx_out_script, signature_for_hash_type_f, lock_time, expected_hash_type=None,
-               traceback_f=None, flags=None):
+    def verify(self, tx_out_script, signature_for_hash_type_f, lock_time, witness=None,
+               expected_hash_type=None, traceback_f=None, flags=None):
         """
         Return True or False depending upon whether this TxIn verifies.
 
@@ -96,7 +96,8 @@ class TxIn(object):
         signature_hash: the hash of the partial transaction
         """
         return verify_script(self.script, tx_out_script, signature_for_hash_type_f, lock_time=lock_time,
-                             flags=flags, expected_hash_type=expected_hash_type, traceback_f=traceback_f)
+                             flags=flags, expected_hash_type=expected_hash_type, traceback_f=traceback_f,
+                             witness=witness)
 
     def __str__(self):
         if self.is_coinbase():

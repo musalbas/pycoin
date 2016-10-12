@@ -4,7 +4,10 @@ from pycoin import encoding
 from pycoin.key.validate import netcode_and_type_for_text
 from pycoin.networks import pay_to_script_prefix_for_netcode
 from pycoin.networks.default import get_current_netcode
-from pycoin.tx.pay_to import ScriptPayToAddress, ScriptPayToScript
+from pycoin.tx.pay_to import (
+    ScriptPayToAddress, ScriptPayToScript,
+    ScriptPayToAddressWit, ScriptPayToScriptWit
+)
 
 
 def script_obj_from_address(address, netcodes=None):
@@ -13,6 +16,10 @@ def script_obj_from_address(address, netcodes=None):
         return ScriptPayToScript(hash160=data)
     if key_type == 'address':
         return ScriptPayToAddress(hash160=data)
+    if key_type == 'address_wit':
+        return ScriptPayToAddressWit(hash160=data)
+    if key_type == 'pay_to_script_wit':
+        return ScriptPayToScriptWit(hash256=data)
     raise ValueError("bad text")
 
 
