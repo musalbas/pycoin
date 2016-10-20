@@ -450,8 +450,9 @@ class Tx(object):
         def signature_for_hash_type_f(hash_type, script):
             return self.signature_hash(script, tx_in_idx, hash_type)
 
+        witness = None
         return tx_in.verify(tx_out_script, signature_for_hash_type_f, self.lock_time,
-                            flags=flags, traceback_f=traceback_f)
+                            witness=witness, flags=flags, traceback_f=traceback_f)
 
     def sign(self, hash160_lookup, hash_type=None, **kwargs):
         """

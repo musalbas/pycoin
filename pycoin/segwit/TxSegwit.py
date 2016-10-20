@@ -87,7 +87,6 @@ class TxSegwit(Tx):
 
         witness = None
         if self.witnesses:
-            import pdb; pdb.set_trace()
             witness = self.witness[tx_in_idx]
         if not tx_in.verify(
                 tx_out_script, signature_for_hash_type_f, expected_hash_type, witness=witness):
@@ -115,11 +114,12 @@ class TxSegwit(Tx):
             tools.write_push_data([tx_out.script], f)
         return double_sha256(f.getvalue())
 
-    def item_5(self, prior_tx_out_script):
+    def item_5(self, prior_tx_out_script, script=b''):
         from pycoin.serialize import h2b
         if prior_tx_out_script[:2] == h2b('0014'):
             # P2WPKH program
             return h2b("1976a914") + prior_tx_out_script[2:] + h2b("88ac")
+        return h2b("19") + script
         raise ValueError("???")
 
     def signature_for_hash_type_segwit(self, script, tx_in_idx, hash_type):
@@ -132,7 +132,7 @@ class TxSegwit(Tx):
         f.write(tx_in.previous_hash)
         stream_struct("L", f, tx_in.previous_index)
         tx_out = self.unspents[tx_in_idx]
-        f.write(self.item_5(tx_out.script))
+        f.write(self.item_5(tx_out.script, script))
         stream_struct("Q", f, tx_out.coin_value)
         stream_struct("L", f, tx_in.sequence)
         f.write(self.hash_outputs())
@@ -153,6 +153,11 @@ class TxSegwit(Tx):
 
         def signature_for_hash_type_f(hash_type, script):
             return self.signature_hash(script, tx_in_idx, hash_type)
+
+        def witness_signature_for_hash_type(hash_type, script):
+            return self.signature_for_hash_type_segwit(script, tx_in_idx, hash_type)
+
+        signature_for_hash_type_f.witness = witness_signature_for_hash_type
 
         witness = None
         if self.witnesses:

@@ -29,7 +29,8 @@ THE SOFTWARE.
 import functools
 import logging
 
-from ...encoding import double_sha256
+from hashlib import sha256
+
 from ...intbytes import byte_to_int, int_to_bytes
 from ...serialize import b2h
 
@@ -276,7 +277,7 @@ def witness_program_version(script):
     l = len(script)
     if l < 4 or l > 42:
         return None
-    first_opcode = script[0]
+    first_opcode = byte_to_int(script[0])
     if first_opcode == opcodes.OP_0:
         return 0
     if opcodes.OP_1 <= first_opcode <= opcodes.OP_16:
@@ -294,7 +295,7 @@ def verify_witness_program(
                 raise ScriptError("witness program empty")
             script_public_key = witness[-1]
             stack = witness[:-1]
-            if double_sha256(script_public_key) != script_signature:
+            if sha256(script_public_key).digest() != script_signature:
                 raise ScriptError("witness program mismatch")
         elif l == 20:
             # special case for pay-to-pubkeyhash; signature + pubkey in witness
@@ -314,9 +315,10 @@ def verify_witness_program(
         if len(s) > 520:
             raise ScriptError("pushing too much data onto stack")
 
-    eval_script(script_public_key, signature_for_hash_type_f, lock_time, expected_hash_type,
+    eval_script(script_public_key, signature_for_hash_type_f.witness, lock_time, expected_hash_type,
                 stack, traceback_f=traceback_f, flags=flags, is_signature=True)
 
+    return len(stack) > 0 and bool_from_script_bytes(stack[-1])
 
 
 def verify_script(script_signature, script_public_key, signature_for_hash_type_f, lock_time,
@@ -347,9 +349,13 @@ def verify_script(script_signature, script_public_key, signature_for_hash_type_f
         eval_script(script_public_key, signature_for_hash_type_f, lock_time, expected_hash_type,
                     stack, traceback_f=traceback_f, flags=flags, is_signature=False)
 
+        if len(stack) == 0 or not bool_from_script_bytes(stack[-1]):
+            return False
+
         if flags & VERIFY_WITNESS:
             witness_version = witness_program_version(script_public_key)
             if witness_version is not None:
+                had_witness = True
                 witness_program = script_public_key[2:]
                 if len(script_signature) > 0:
                     raise ScriptError("script sig is not blank on segwit input")
@@ -358,7 +364,7 @@ def verify_script(script_signature, script_public_key, signature_for_hash_type_f
                         signature_for_hash_type_f, lock_time, expected_hash_type,
                         traceback_f):
                     return False
-                stack = stack[:1]
+                return True
 
     except ScriptError:
         return False
@@ -367,7 +373,7 @@ def verify_script(script_signature, script_public_key, signature_for_hash_type_f
         check_script_push_only(script_signature)
         return verify_script(alt_script_signature, alt_script_public_key, signature_for_hash_type_f,
                              lock_time, flags & ~VERIFY_P2SH, expected_hash_type=expected_hash_type,
-                             traceback_f=traceback_f)
+                             traceback_f=traceback_f, witness=witness)
 
     if flags & VERIFY_CLEANSTACK and len(stack) != 1:
         raise ScriptError("stack not clean after evaulation")
