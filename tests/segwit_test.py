@@ -4,10 +4,10 @@ import unittest
 
 from pycoin.encoding import to_bytes_32
 from pycoin.serialize import b2h, h2b, h2b_rev
-from pycoin.segwit.TxSegwit import TxSegwit as Tx
 from pycoin.tx import TxOut
 from pycoin.tx.script import tools
 from pycoin.tx.Tx import SIGHASH_ALL, SIGHASH_SINGLE, SIGHASH_NONE, SIGHASH_ANYONECANPAY
+from pycoin.tx.TxSegwit import TxSegwit as Tx
 
 class SegwitTest(unittest.TestCase):
 
