@@ -3,10 +3,10 @@ import binascii
 import unittest
 
 from pycoin.encoding import to_bytes_32
-from pycoin.tx import TxOut
 from pycoin.serialize import b2h, h2b, h2b_rev
 from pycoin.segwit.TxSegwit import TxSegwit as Tx
-
+from pycoin.tx import TxOut
+from pycoin.tx.Tx import SIGHASH_ALL
 
 class SegwitTest(unittest.TestCase):
 
@@ -43,11 +43,11 @@ class SegwitTest(unittest.TestCase):
             self.assertEqual(tx.lock_time, 17)
             tx.set_unspents(txs_out)
 
-        self.assertEqual(b2h(tx_s1.hash_prevouts()),
+        self.assertEqual(b2h(tx_s1.hash_prevouts(SIGHASH_ALL)),
                          "96b827c8483d4e9b96712b6713a7b68d6e8003a781feba36c31143470b4efd37")
-        self.assertEqual(b2h(tx_s1.hash_sequence()),
+        self.assertEqual(b2h(tx_s1.hash_sequence(SIGHASH_ALL)),
                          "52b0a642eea2fb7ae638c36f6252b6750293dbe574a806984b8e4d8548339a3b")
-        self.assertEqual(b2h(tx_s1.hash_outputs()),
+        self.assertEqual(b2h(tx_s1.hash_outputs(SIGHASH_ALL, 0)),
                          "863ef3e1a92afbfdb97f31ad0fc7683ee943e9abcf2501590ff8f6551f47e5e5")
 
         self.assertEqual(b2h(tx_s1.item_5(tx_s1.unspents[1].script)),

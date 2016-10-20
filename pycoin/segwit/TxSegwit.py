@@ -9,6 +9,9 @@ from pycoin.serialize.bitcoin_streamer import (
 
 from pycoin.tx import Tx, TxIn, TxOut
 from pycoin.tx.script import tools
+from pycoin.tx.Tx import SIGHASH_ANYONECANPAY, SIGHASH_NONE, SIGHASH_SINGLE
+
+ZERO32 = b'\0' * 32
 
 
 class TxSegwit(Tx):
@@ -94,22 +97,38 @@ class TxSegwit(Tx):
                 "just signed script Tx %s TxIn index %d did not verify" % (
                     b2h_rev(tx_in.previous_hash), tx_in_idx))
 
-    def hash_prevouts(self):
+    def hash_prevouts(self, hash_type):
+        if hash_type & SIGHASH_ANYONECANPAY:
+            return ZERO32
         f = io.BytesIO()
         for tx_in in self.txs_in:
             f.write(tx_in.previous_hash)
             stream_struct("L", f, tx_in.previous_index)
         return double_sha256(f.getvalue())
 
-    def hash_sequence(self):
+    def hash_sequence(self, hash_type):
+        if (
+                (hash_type & SIGHASH_ANYONECANPAY) or
+                ((hash_type & 0x1f) == SIGHASH_SINGLE) or
+                ((hash_type & 0x1f) == SIGHASH_NONE)
+        ):
+            return ZERO32
+
         f = io.BytesIO()
         for tx_in in self.txs_in:
             stream_struct("L", f, tx_in.sequence)
         return double_sha256(f.getvalue())
 
-    def hash_outputs(self):
+    def hash_outputs(self, hash_type, tx_in_idx):
+        txs_out = self.txs_out
+        if hash_type & 0x1f == SIGHASH_SINGLE:
+            if tx_in_idx >= len(txs_out):
+                return ZERO32
+            txs_out = txs_out[tx_in_idx:tx_in_idx+1]
+        elif hash_type == SIGHASH_NONE:
+            return ZERO32
         f = io.BytesIO()
-        for tx_out in self.txs_out:
+        for tx_out in txs_out:
             stream_struct("Q", f, tx_out.coin_value)
             tools.write_push_data([tx_out.script], f)
         return double_sha256(f.getvalue())
@@ -126,16 +145,16 @@ class TxSegwit(Tx):
         f = io.BytesIO()
         stream_struct("L", f, self.version)
         # calculate hash prevouts
-        f.write(self.hash_prevouts())
-        f.write(self.hash_sequence())
+        f.write(self.hash_prevouts(hash_type))
+        f.write(self.hash_sequence(hash_type))
         tx_in = self.txs_in[tx_in_idx]
         f.write(tx_in.previous_hash)
         stream_struct("L", f, tx_in.previous_index)
         tx_out = self.unspents[tx_in_idx]
-        f.write(self.item_5(tx_out.script, script))
+        tools.write_push_data([script], f)
         stream_struct("Q", f, tx_out.coin_value)
         stream_struct("L", f, tx_in.sequence)
-        f.write(self.hash_outputs())
+        f.write(self.hash_outputs(hash_type, tx_in_idx))
         stream_struct("L", f, self.lock_time)
         stream_struct("L", f, hash_type)
         return from_bytes_32(double_sha256(f.getvalue()))
