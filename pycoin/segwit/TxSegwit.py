@@ -125,7 +125,7 @@ class TxSegwit(Tx):
             if tx_in_idx >= len(txs_out):
                 return ZERO32
             txs_out = txs_out[tx_in_idx:tx_in_idx+1]
-        elif hash_type == SIGHASH_NONE:
+        elif hash_type & 0x1f == SIGHASH_NONE:
             return ZERO32
         f = io.BytesIO()
         for tx_out in txs_out:
@@ -133,15 +133,7 @@ class TxSegwit(Tx):
             tools.write_push_data([tx_out.script], f)
         return double_sha256(f.getvalue())
 
-    def item_5(self, prior_tx_out_script, script=b''):
-        from pycoin.serialize import h2b
-        if prior_tx_out_script[:2] == h2b('0014'):
-            # P2WPKH program
-            return h2b("1976a914") + prior_tx_out_script[2:] + h2b("88ac")
-        return h2b("19") + script
-        raise ValueError("???")
-
-    def signature_for_hash_type_segwit(self, script, tx_in_idx, hash_type):
+    def segwit_signature_preimage(self, script, tx_in_idx, hash_type):
         f = io.BytesIO()
         stream_struct("L", f, self.version)
         # calculate hash prevouts
@@ -151,13 +143,18 @@ class TxSegwit(Tx):
         f.write(tx_in.previous_hash)
         stream_struct("L", f, tx_in.previous_index)
         tx_out = self.unspents[tx_in_idx]
-        tools.write_push_data([script], f)
+        from pycoin.serialize.bitcoin_streamer import stream_bc_string
+        stream_bc_string(f, script)
+        #tools.write_push_data([script], f)
         stream_struct("Q", f, tx_out.coin_value)
         stream_struct("L", f, tx_in.sequence)
         f.write(self.hash_outputs(hash_type, tx_in_idx))
         stream_struct("L", f, self.lock_time)
         stream_struct("L", f, hash_type)
-        return from_bytes_32(double_sha256(f.getvalue()))
+        return f.getvalue()
+
+    def signature_for_hash_type_segwit(self, script, tx_in_idx, hash_type):
+        return from_bytes_32(double_sha256(self.segwit_signature_preimage(script, tx_in_idx, hash_type)))
 
     def is_signature_ok(self, tx_in_idx, flags=None, traceback_f=None):
         tx_in = self.txs_in[tx_in_idx]
