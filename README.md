@@ -1,5 +1,5 @@
-** THIS IS THE EXPERIMENT SEGWIT BRANCH **
-==========================================
+** THIS IS THE EXPERIMENTAL SEGWIT BRANCH **
+============================================
 
 Things may change -- a lot. But I wanted to publish this so you can see where I'm going with it.
 
