@@ -4,7 +4,7 @@ from pycoin.encoding import double_sha256, from_bytes_32
 from pycoin.serialize import b2h
 from pycoin.serialize.bitcoin_streamer import (
     parse_struct, parse_bc_int, parse_bc_string,
-    stream_struct
+    stream_struct, stream_bc_string
 )
 
 from pycoin.tx import Tx, TxIn, TxOut
@@ -15,6 +15,10 @@ ZERO32 = b'\0' * 32
 
 
 class TxSegwit(Tx):
+
+    def __init__(self, *args, **kwargs):
+        super(TxSegwit, self).__init__(*args, **kwargs)
+        self.witnesses = []
 
     @classmethod
     def parse(class_, f):
@@ -52,7 +56,7 @@ class TxSegwit(Tx):
         tx.witnesses = witnesses
         return tx
 
-    def stream1(self, f, blank_solutions=False, include_unspents=False):
+    def stream(self, f, blank_solutions=False, include_unspents=False):
         is_segwit = len(self.witnesses) > 0
         stream_struct("L", f, self.version)
         if is_segwit:
@@ -63,10 +67,12 @@ class TxSegwit(Tx):
         stream_struct("I", f, len(self.txs_out))
         for t in self.txs_out:
             t.stream(f)
-        stream_struct("L", f, self.lock_time)
         if is_segwit:
             for witness in self.witnesses:
-                stream_struct(f, "[S]", witness)
+                stream_struct("I", f, len(witness))
+                for w in witness:
+                    stream_bc_string(f, w)
+        stream_struct("L", f, self.lock_time)
         if include_unspents and not self.missing_unspents():
             self.stream_unspents(f)
 
@@ -143,9 +149,7 @@ class TxSegwit(Tx):
         f.write(tx_in.previous_hash)
         stream_struct("L", f, tx_in.previous_index)
         tx_out = self.unspents[tx_in_idx]
-        from pycoin.serialize.bitcoin_streamer import stream_bc_string
         stream_bc_string(f, script)
-        #tools.write_push_data([script], f)
         stream_struct("Q", f, tx_out.coin_value)
         stream_struct("L", f, tx_in.sequence)
         f.write(self.hash_outputs(hash_type, tx_in_idx))
