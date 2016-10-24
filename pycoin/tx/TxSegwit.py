@@ -182,7 +182,7 @@ class TxSegwit(Tx):
         witness = None
         if self.witnesses:
             witness = self.witnesses[tx_in_idx]
-        
+
         return tx_in.verify(tx_out_script, signature_for_hash_type_f, self.lock_time,
                             witness=witness, flags=flags, traceback_f=traceback_f)
 
