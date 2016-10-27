@@ -85,7 +85,7 @@ class SegwitTest(unittest.TestCase):
         self.check_signed(tx_u_prime)
         tx_hex = tx_u_prime.as_hex()
         self.assertEqual(tx_hex, tx_s_hex)
-    
+
     def test_bip143_txs(self):
         # these five examples are from BIP 143 at
         # https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
