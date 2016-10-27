@@ -179,7 +179,7 @@ class SegwitTest(unittest.TestCase):
         ]:
             from pycoin.tx.pay_to import build_hash160_lookup
             SECRETS.get("hash160_lookup").secret_exponent_db_cache.update(build_hash160_lookup([se]))
-            tx_u5prime.sign(**SECRETS, hash_type=sighash_type)
+            tx_u5prime.sign(hash_type=sighash_type, **SECRETS)
 
         self.check_signed(tx_u5prime)
         tx_hex = tx_u5prime.as_hex()
