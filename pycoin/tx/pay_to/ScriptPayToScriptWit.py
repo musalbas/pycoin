@@ -1,7 +1,5 @@
 from ..script import tools
 
-from ... import encoding
-
 from ...serialize import b2h
 
 from .ScriptType import ScriptType
@@ -9,15 +7,17 @@ from .ScriptType import ScriptType
 
 class ScriptPayToScriptWit(ScriptType):
     def __init__(self, hash256):
+        assert len(hash256) == 32
+        assert isinstance(hash256, bytes)
         self.hash256 = hash256
         self._address = None
         self._script = None
 
     @classmethod
     def from_script(cls, script):
-        if script[0:2] != b'\00\20':
+        if script[0:2] != b'\00\x20':
             raise ValueError("bad script")
-        return cls(encoding.double_sha256(script))
+        return cls(script[2:])
 
     def solve(self, **kwargs):
         """
@@ -32,8 +32,19 @@ class ScriptPayToScriptWit(ScriptType):
         if underlying_script is None:
             raise ValueError("underlying script cannot be determined for %s" % b2h(self.hash256))
         script_obj = script_obj_from_script(underlying_script)
+        print(script_obj)
+
+        kwargs["signature_for_hash_type_f"] = kwargs["signature_for_hash_type_f"].witness
+        kwargs["script_to_hash"] = underlying_script
+        kwargs["existing_script"] = tools.bin_script(kwargs["existing_witness"])
         underlying_solution = script_obj.solve(**kwargs)
-        solution = tools.compile("OP_0") + underlying_solution + tools.bin_script([underlying_script])
+        # we need to unwrap the solution
+        solution = []
+        pc = 0
+        while pc < len(underlying_solution):
+            opcode, data, pc = tools.get_opcode(underlying_solution, pc)
+            solution.append(data)
+        solution.append(underlying_script)
         return (b"", solution)
 
     def script(self):

@@ -1,6 +1,7 @@
 import io
 
 from pycoin.encoding import double_sha256, from_bytes_32
+from pycoin.intbytes import byte_to_int
 from pycoin.serialize import b2h
 from pycoin.serialize.bitcoin_streamer import (
     parse_struct, parse_bc_int, parse_bc_string,
@@ -8,7 +9,8 @@ from pycoin.serialize.bitcoin_streamer import (
 )
 
 from pycoin.tx import Tx, TxIn, TxOut
-from pycoin.tx.script import tools
+from pycoin.tx.pay_to import script_obj_from_script, ScriptPayToScript
+from pycoin.tx.script import opcodes, tools
 from pycoin.tx.Tx import SIGHASH_ANYONECANPAY, SIGHASH_NONE, SIGHASH_SINGLE
 
 ZERO32 = b'\0' * 32
@@ -76,17 +78,86 @@ class TxSegwit(Tx):
         if include_unspents and not self.missing_unspents():
             self.stream_unspents(f)
 
-    def set_witnesses(self, witnesses):
+    def set_witness(self, tx_idx_in, witness):
+        witnesses = self.witnesses
+        while len(witnesses) < len(self.txs_in):
+            witnesses.append([])
         assert len(witnesses) == len(self.txs_in)
-        for w in witnesses:
+        for w in witness:
             assert isinstance(w, bytes)
-        self.witnesses = witnesses
+        witnesses[tx_idx_in] = tuple(witness)
 
     def w_hash(self):
         pass
 
     def w_id(self):
         return b2h(self.w_hash())
+
+    def solve(self, hash160_lookup, tx_in_idx, tx_out_script, hash_type=None, **kwargs):
+        """
+        Sign a standard transaction.
+        hash160_lookup:
+            An object with a get method that accepts a hash160 and returns the
+            corresponding (secret exponent, public_pair, is_compressed) tuple or
+            None if it's unknown (in which case the script will obviously not be signed).
+            A standard dictionary will do nicely here.
+        tx_in_idx:
+            the index of the tx_in we are currently signing
+        tx_out:
+            the tx_out referenced by the given tx_in
+        """
+        if hash_type is None:
+            hash_type = self.SIGHASH_ALL
+        tx_in = self.txs_in[tx_in_idx]
+
+        is_p2h = (len(tx_out_script) == 23 and byte_to_int(tx_out_script[0]) == opcodes.OP_HASH160 and
+                  byte_to_int(tx_out_script[-1]) == opcodes.OP_EQUAL)
+        if is_p2h:
+            hash160 = ScriptPayToScript.from_script(tx_out_script).hash160
+            p2sh_lookup = kwargs.get("p2sh_lookup")
+            if p2sh_lookup is None:
+                raise ValueError("p2sh_lookup not set")
+            if hash160 not in p2sh_lookup:
+                raise ValueError("hash160=%s not found in p2sh_lookup" %
+                                 b2h(hash160))
+
+            script_to_hash = p2sh_lookup[hash160]
+        else:
+            script_to_hash = tx_out_script
+
+        # Leave out the signature from the hash, since a signature can't sign itself.
+        # The checksig op will also drop the signatures from its hash.
+        def signature_for_hash_type_f(hash_type, script):
+            return self.signature_hash(script, tx_in_idx, hash_type)
+
+        def witness_signature_for_hash_type(hash_type, script):
+            return self.signature_for_hash_type_segwit(script, tx_in_idx, hash_type)
+
+        signature_for_hash_type_f.witness = witness_signature_for_hash_type
+
+        if tx_in.verify(tx_out_script, signature_for_hash_type_f, self.lock_time):
+            return
+
+        the_script = script_obj_from_script(tx_out_script)
+        witness = []
+        if len(self.witnesses) > tx_in_idx:
+            witness = self.witnesses[tx_in_idx]
+        solution = the_script.solve(
+            hash160_lookup=hash160_lookup, signature_type=hash_type,
+            existing_script=self.txs_in[tx_in_idx].script, existing_witness=witness,
+            script_to_hash=script_to_hash, signature_for_hash_type_f=signature_for_hash_type_f, **kwargs)
+        return solution
+
+    def sign_tx_in(self, hash160_lookup, tx_in_idx, tx_out_script, hash_type=None, **kwargs):
+        if hash_type is None:
+            hash_type = self.SIGHASH_ALL
+        r = self.solve(hash160_lookup, tx_in_idx, tx_out_script,
+                       hash_type=hash_type, **kwargs)
+        if isinstance(r, bytes):
+            self.txs_in[tx_in_idx].script = r
+        else:
+            self.txs_in[tx_in_idx].script = r[0]
+            self.set_witness(tx_in_idx, r[1])
 
     def verify_tx_in(self, tx_in_idx, tx_out_script, expected_hash_type=None):
         tx_in = self.txs_in[tx_in_idx]

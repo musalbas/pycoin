@@ -1,13 +1,40 @@
-
 import binascii
 import unittest
 
 from pycoin.encoding import to_bytes_32
+from pycoin.key import Key
 from pycoin.serialize import b2h, h2b, h2b_rev
 from pycoin.tx import TxOut
+from pycoin.tx.pay_to import build_p2sh_lookup
 from pycoin.tx.script import tools
 from pycoin.tx.Tx import SIGHASH_ALL, SIGHASH_SINGLE, SIGHASH_NONE, SIGHASH_ANYONECANPAY
 from pycoin.tx.TxSegwit import TxSegwit as Tx
+from pycoin.tx.tx_utils import LazySecretExponentDB
+
+
+PRIVATE_KEYS = [
+    0xbbc27228ddcb9209d7fd6f36b02f7dfa6252af40bb2f1cbc7a557da8027ff866,
+    0x619c335025c7f4012e556c2a58b2506e30b8511b53ade95ea316fd8c3286feb9,
+    0xeb696a065ef48a2192da5b28b694f87544b30fae8327c4510137a922f32c6dcf,
+    0xb8f28a772fccbf9b4f58a4f027e07dc2e35e7cd80529975e292ea34f84c4580c,
+    0x8e02b539b1500aa7c81cf3fed177448a546f19d2be416c0c61ff28e577d8d0cd,
+    0x86bf2ed75935a0cbef03b89d72034bb4c189d381037a5ac121a70016db8896ec,
+    0xf52b3484edd96598e02a9c89c4492e9c1e2031f471c49fd721fe68b3ce37780d,
+]
+
+
+SECRETS = dict(
+    hash160_lookup=LazySecretExponentDB([Key(pk).wif() for pk in PRIVATE_KEYS], {}),
+    p2sh_lookup=build_p2sh_lookup(
+        [
+            h2b("001479091972186c449eb1ded22b78e40d009bdf0089"),
+            h2b("0020a16b5755f7f6f96dbd65f5f0d6ab9418b89af4b1f14a1bb8a09062c35f0dcb54"),
+            h2b("21026dccc749adc2a9d0d89497ac511f760f45c47dc5ed9cf352a58ac706453880aeadab210255a9626aebf5e29c0e6538428ba0d1dcf6ca98ffdf086aa8ced5e0d0215ea465ac"),
+            h2b("ad4830450220487fb382c4974de3f7d834c1b617fe15860828c7f96454490edd6d891556dcc9022100baf95feb48f845d5bfc9882eb6aeefa1bc3790e39f59eaa46ff7f15ae626c53e01"),
+            h2b("56210307b8ae49ac90a048e9b53357a2354b3334e9c8bee813ecb98e99a7e07e8c3ba32103b28f0c28bfab54554ae8c658ac5c3e0ce6e79ad336331f78c428dd43eea8449b21034b8113d703413d57761b8b9781957b8c0ac1dfe69f492580ca4195f50376ba4a21033400f6afecb833092a9a21cfdf1ed1376e58c5d1f47de74683123987e967a8f42103a6d48b1131e94ba04d9737d61acdaa1322008af9602b3b14862c07a1789aac162102d8b661b0b3302ee2f162b09e07a55ad5dfbe673a9f01d9f0c19617681024306b56ae"),
+        ]
+    )
+)
 
 class SegwitTest(unittest.TestCase):
 
@@ -18,6 +45,13 @@ class SegwitTest(unittest.TestCase):
     def check_signed(self, tx):
         for idx, txs_in in enumerate(tx.txs_in):
             self.assertTrue(tx.is_signature_ok(idx))
+
+    def unsigned_copy(self, tx):
+        tx = Tx.from_hex(tx.as_hex())
+        for tx_in in tx.txs_in:
+            tx_in.script = b''
+        tx.witnesses = []
+        return tx
 
     def check_bip143_tx(self, tx_u_hex, tx_s_hex, txs_out_value_scripthex_pair, tx_in_count, tx_out_count, version, lock_time):
         tx_u = Tx.from_hex(tx_u_hex)
@@ -33,12 +67,24 @@ class SegwitTest(unittest.TestCase):
             tx.set_unspents(txs_out)
         self.check_unsigned(tx_u)
         self.check_signed(tx_s)
-        self.check_signed(tx_s)
         tx_hex = tx_u.as_hex()
         self.assertEqual(tx_hex, tx_u_hex)
         tx_hex = tx_s.as_hex()
         self.assertEqual(tx_hex, tx_s_hex)
+        tx_u_prime = self.unsigned_copy(tx_s)
+        tx_hex = tx_u_prime.as_hex()
+        self.assertEqual(tx_hex, tx_u_hex)
         return tx_u, tx_s
+
+    def check_tx_can_be_signed(self, tx_u, tx_s):
+        tx_u_prime = self.unsigned_copy(tx_s)
+        tx_u_hex = tx_u.as_hex()
+        tx_s_hex = tx_s.as_hex()
+        tx_u_prime.set_unspents(tx_s.unspents)
+        tx_u_prime.sign(**SECRETS)
+        self.check_signed(tx_u_prime)
+        tx_hex = tx_u_prime.as_hex()
+        self.assertEqual(tx_hex, tx_s_hex)
     
     def test_bip143_txs(self):
         # these five examples are from BIP 143 at
@@ -70,7 +116,7 @@ class SegwitTest(unittest.TestCase):
 
         self.assertEqual(b2h(to_bytes_32(tx_s1.signature_for_hash_type_segwit(script, 1, 1))),
                          "c37af31116d1b27caf68aae9e3ac82f1477929014d5b917657d0eb49478cb670")
-
+        self.check_tx_can_be_signed(tx_u1, tx_s1)
 
         tx_u2, tx_s2 = self.check_bip143_tx(
             "0100000001db6b1b20aa0fd7b23880be2ecbd4a98130974cf4748fb66092ac4d3ceb1a54770100000000feffffff02b8b4eb0b000000001976a914a457b684d7f0d539a46a45bbc043f35b59d0d96388ac0008af2f000000001976a914fd270b1ee6abcaea97fea7ad0402e8bd8ad6d77c88ac92040000",
@@ -81,6 +127,7 @@ class SegwitTest(unittest.TestCase):
             1,
             1170
         )
+        self.check_tx_can_be_signed(tx_u2, tx_s2)
 
         tx_u3, tx_s3 = self.check_bip143_tx(
             "0100000002fe3dc9208094f3ffd12645477b3dc56f60ec4fa8e6f5d67c565d1c6b9216b36e0000000000ffffffff0815cf020f013ed6cf91d29f4202e8a58726b1ac6c79da47c23d1bee0a6925f80000000000ffffffff0100f2052a010000001976a914a30741f8145e5acadf23f751864167f32e0963f788ac00000000",
@@ -95,7 +142,7 @@ class SegwitTest(unittest.TestCase):
             0
         )
 
-        self.check_bip143_tx(
+        tx_u4, tx_s4 = self.check_bip143_tx(
             "0100000002e9b542c5176808107ff1df906f46bb1f2583b16112b95ee5380665ba7fcfc0010000000000ffffffff80e68831516392fcd100d186b3c2c7b95c80b53c77e77c35ba03a66b429a2a1b0000000000ffffffff0280969800000000001976a914de4b231626ef508c9a74a8517e6783c0546d6b2888ac80969800000000001976a9146648a8cd4531e1ec47f35916de8e259237294d1e88ac00000000",
             "01000000000102e9b542c5176808107ff1df906f46bb1f2583b16112b95ee5380665ba7fcfc0010000000000ffffffff80e68831516392fcd100d186b3c2c7b95c80b53c77e77c35ba03a66b429a2a1b0000000000ffffffff0280969800000000001976a914de4b231626ef508c9a74a8517e6783c0546d6b2888ac80969800000000001976a9146648a8cd4531e1ec47f35916de8e259237294d1e88ac02483045022100f6a10b8604e6dc910194b79ccfc93e1bc0ec7c03453caaa8987f7d6c3413566002206216229ede9b4d6ec2d325be245c5b508ff0339bf1794078e20bfe0babc7ffe683270063ab68210392972e2eb617b2388771abe27235fd5ac44af8e61693261550447a4c3e39da98ac024730440220032521802a76ad7bf74d0e2c218b72cf0cbc867066e2e53db905ba37f130397e02207709e2188ed7f08f4c952d9d13986da504502b8c3be59617e043552f506c46ff83275163ab68210392972e2eb617b2388771abe27235fd5ac44af8e61693261550447a4c3e39da98ac00000000",
             [
@@ -117,6 +164,26 @@ class SegwitTest(unittest.TestCase):
             1,
             0
         )
+
+        tx_u5prime = self.unsigned_copy(tx_s5)
+        tx_s_hex = tx_s5.as_hex()
+        tx_u5prime.set_unspents(tx_s5.unspents)
+
+        for se, sighash_type in [
+            (0x730fff80e1413068a05b57d6a58261f07551163369787f349438ea38ca80fac6, SIGHASH_ALL),
+            (0x11fa3d25a17cbc22b29c44a484ba552b5a53149d106d3d853e22fdd05a2d8bb3, SIGHASH_NONE),
+            (0x77bf4141a87d55bdd7f3cd0bdccf6e9e642935fec45f2f30047be7b799120661, SIGHASH_SINGLE),
+            (0x14af36970f5025ea3e8b5542c0f8ebe7763e674838d08808896b63c3351ffe49, SIGHASH_ANYONECANPAY|SIGHASH_ALL),
+            (0xfe9a95c19eef81dde2b95c1284ef39be497d128e2aa46916fb02d552485e0323, SIGHASH_ANYONECANPAY|SIGHASH_NONE),
+            (0x428a7aee9f0c2af0cd19af3cf1c78149951ea528726989b2e83e4778d2c3f890, SIGHASH_ANYONECANPAY|SIGHASH_SINGLE),
+        ]:
+            from pycoin.tx.pay_to import build_hash160_lookup
+            SECRETS.get("hash160_lookup").secret_exponent_db_cache.update(build_hash160_lookup([se]))
+            tx_u5prime.sign(**SECRETS, hash_type=sighash_type)
+
+        self.check_signed(tx_u5prime)
+        tx_hex = tx_u5prime.as_hex()
+        self.assertEqual(tx_hex, tx_s_hex)
 
         self.assertEqual(b2h(tx_s5.hash_prevouts(SIGHASH_ALL)),
                          "74afdc312af5183c4198a40ca3c1a275b485496dd3929bca388c4b5e31f7aaa0")

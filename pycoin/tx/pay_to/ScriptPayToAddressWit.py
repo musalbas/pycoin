@@ -39,8 +39,8 @@ class ScriptPayToAddressWit(ScriptType):
         The kwargs required depend upon the script type.
         hash160_lookup:
             dict-like structure that returns a secret exponent for a hash160
-        sign_value:
-            the integer value to sign (derived from the transaction hash)
+        signature_for_hash_type_f:
+            function returning sign value for a given signature type
         signature_type:
             usually SIGHASH_ALL (1)
         """
@@ -52,15 +52,19 @@ class ScriptPayToAddressWit(ScriptType):
         if result is None:
             raise SolvingError("can't find secret exponent for %s" % self.address())
         # we got it
-        sign_value = kwargs.get("sign_value")
+        script_to_hash = tools.compile(
+            "OP_DUP OP_HASH160 %s OP_EQUALVERIFY OP_CHECKSIG" % b2h(self.hash160))
+
+        signature_for_hash_type_f = kwargs.get("signature_for_hash_type_f").witness
         signature_type = kwargs.get("signature_type")
 
         secret_exponent, public_pair, compressed = result
 
-        binary_signature = self._create_script_signature(secret_exponent, sign_value, signature_type)
+        binary_signature = self._create_script_signature(
+            secret_exponent, signature_for_hash_type_f, signature_type, script_to_hash)
         binary_public_pair_sec = encoding.public_pair_to_sec(public_pair, compressed=compressed)
 
-        solution = tools.bin_script([binary_signature, binary_public_pair_sec])
+        solution = [binary_signature, binary_public_pair_sec]
         return (b'', solution)
 
     def info(self, netcode=None):
