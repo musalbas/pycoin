@@ -59,7 +59,7 @@ class TxSegwit(Tx):
         return tx
 
     def stream(self, f, blank_solutions=False, include_unspents=False):
-        is_segwit = len(self.witnesses) > 0
+        is_segwit = any(len(witness) > 0 for witness in self.witnesses)
         stream_struct("L", f, self.version)
         if is_segwit:
             f.write(b'\0\1')
