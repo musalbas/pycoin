@@ -132,6 +132,7 @@ class TxSegwit(Tx):
 
         def witness_signature_for_hash_type(hash_type, script):
             return self.signature_for_hash_type_segwit(script, tx_in_idx, hash_type)
+        witness_signature_for_hash_type.skip_delete = True
 
         signature_for_hash_type_f.witness = witness_signature_for_hash_type
 
@@ -247,6 +248,7 @@ class TxSegwit(Tx):
 
         def witness_signature_for_hash_type(hash_type, script):
             return self.signature_for_hash_type_segwit(script, tx_in_idx, hash_type)
+        witness_signature_for_hash_type.skip_delete = True
 
         signature_for_hash_type_f.witness = witness_signature_for_hash_type
 
