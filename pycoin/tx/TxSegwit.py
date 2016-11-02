@@ -2,7 +2,7 @@ import io
 
 from pycoin.encoding import double_sha256, from_bytes_32
 from pycoin.intbytes import byte_to_int
-from pycoin.serialize import b2h
+from pycoin.serialize import b2h, b2h_rev
 from pycoin.serialize.bitcoin_streamer import (
     parse_struct, parse_bc_int, parse_bc_string,
     stream_struct, stream_bc_string
@@ -58,8 +58,8 @@ class TxSegwit(Tx):
         tx.witnesses = witnesses
         return tx
 
-    def stream(self, f, blank_solutions=False, include_unspents=False):
-        is_segwit = any(len(witness) > 0 for witness in self.witnesses)
+    def stream(self, f, blank_solutions=False, include_unspents=False, include_witness_data=True):
+        is_segwit = include_witness_data and self.has_witness_data()
         stream_struct("L", f, self.version)
         if is_segwit:
             f.write(b'\0\1')
@@ -78,6 +78,12 @@ class TxSegwit(Tx):
         if include_unspents and not self.missing_unspents():
             self.stream_unspents(f)
 
+    def as_bin(self, include_unspents=False, include_witness_data=True):
+        """Return the transaction as binary."""
+        f = io.BytesIO()
+        self.stream(f, include_unspents=include_unspents, include_witness_data=include_witness_data)
+        return f.getvalue()
+
     def set_witness(self, tx_idx_in, witness):
         witnesses = self.witnesses
         while len(witnesses) < len(self.txs_in):
@@ -87,11 +93,22 @@ class TxSegwit(Tx):
             assert isinstance(w, bytes)
         witnesses[tx_idx_in] = tuple(witness)
 
+    def has_witness_data(self):
+        return any(len(witness) > 0 for witness in self.witnesses)
+
     def w_hash(self):
-        pass
+        return double_sha256(self.as_bin())
 
     def w_id(self):
-        return b2h(self.w_hash())
+        return b2h_rev(self.w_hash())
+
+    def hash(self, hash_type=None):
+        """Return the hash for this Tx object."""
+        s = io.BytesIO()
+        self.stream(s, include_witness_data=False)
+        if hash_type:
+            stream_struct("L", s, hash_type)
+        return double_sha256(s.getvalue())
 
     def solve(self, hash160_lookup, tx_in_idx, tx_out_script, hash_type=None, **kwargs):
         """

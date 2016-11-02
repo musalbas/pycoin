@@ -1,9 +1,9 @@
 import binascii
 import unittest
 
-from pycoin.encoding import to_bytes_32
+from pycoin.encoding import double_sha256, to_bytes_32
 from pycoin.key import Key
-from pycoin.serialize import b2h, h2b, h2b_rev
+from pycoin.serialize import b2h, b2h_rev, h2b, h2b_rev
 from pycoin.tx import TxOut
 from pycoin.tx.pay_to import build_p2sh_lookup
 from pycoin.tx.script import tools
@@ -74,6 +74,9 @@ class SegwitTest(unittest.TestCase):
         tx_u_prime = self.unsigned_copy(tx_s)
         tx_hex = tx_u_prime.as_hex()
         self.assertEqual(tx_hex, tx_u_hex)
+        self.assertEqual(b2h_rev(double_sha256(h2b(tx_s_hex))), tx_s.w_id())
+        self.assertEqual(b2h_rev(double_sha256(h2b(tx_u_hex))), tx_u.w_id())
+        self.assertEqual(b2h_rev(double_sha256(h2b(tx_u_hex))), tx_u.id())
         return tx_u, tx_s
 
     def check_tx_can_be_signed(self, tx_u, tx_s):
