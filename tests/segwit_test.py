@@ -7,8 +7,7 @@ from pycoin.serialize import b2h, b2h_rev, h2b, h2b_rev
 from pycoin.tx import TxOut
 from pycoin.tx.pay_to import build_hash160_lookup, build_p2sh_lookup
 from pycoin.tx.script import tools
-from pycoin.tx.Tx import SIGHASH_ALL, SIGHASH_SINGLE, SIGHASH_NONE, SIGHASH_ANYONECANPAY
-from pycoin.tx.TxSegwit import TxSegwit as Tx
+from pycoin.tx.Tx import SIGHASH_ALL, SIGHASH_SINGLE, SIGHASH_NONE, SIGHASH_ANYONECANPAY, Tx
 from pycoin.tx.tx_utils import LazySecretExponentDB
 
 
