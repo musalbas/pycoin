@@ -97,8 +97,8 @@ class Tx(object):
         version, = parse_struct("L", f)
         is_segwit = False
         v = ord(f.read(1))
-        is_segwit = (v == 0)
-        if allow_segwit and is_segwit:
+        is_segwit = allow_segwit and (v == 0)
+        if is_segwit:
             flag = f.read(1)
             if flag != b'\1':
                 raise ValueError("bad flag in segwit")
@@ -121,7 +121,7 @@ class Tx(object):
                     stack.append(parse_bc_string(f))
                 witnesses.append(stack)
         lock_time, = parse_struct("L", f)
-        return class_(version, txs_in, txs_out, lock_time, witnesses)
+        return class_(version, txs_in, txs_out, lock_time, witnesses=witnesses)
 
     @classmethod
     def from_bin(cls, blob):
