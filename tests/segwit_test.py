@@ -5,7 +5,7 @@ from pycoin.encoding import double_sha256, to_bytes_32
 from pycoin.key import Key
 from pycoin.serialize import b2h, b2h_rev, h2b, h2b_rev
 from pycoin.tx import TxOut
-from pycoin.tx.pay_to import build_p2sh_lookup
+from pycoin.tx.pay_to import build_hash160_lookup, build_p2sh_lookup
 from pycoin.tx.script import tools
 from pycoin.tx.Tx import SIGHASH_ALL, SIGHASH_SINGLE, SIGHASH_NONE, SIGHASH_ANYONECANPAY
 from pycoin.tx.TxSegwit import TxSegwit as Tx
@@ -166,7 +166,6 @@ class SegwitTest(unittest.TestCase):
             (0xfe9a95c19eef81dde2b95c1284ef39be497d128e2aa46916fb02d552485e0323, SIGHASH_ANYONECANPAY|SIGHASH_NONE),
             (0x428a7aee9f0c2af0cd19af3cf1c78149951ea528726989b2e83e4778d2c3f890, SIGHASH_ANYONECANPAY|SIGHASH_SINGLE),
         ]:
-            from pycoin.tx.pay_to import build_hash160_lookup
             tx_u5prime.sign(hash_type=sighash_type, hash160_lookup=build_hash160_lookup([se]), p2sh_lookup=p2sh_lookup)
 
         self.check_signed(tx_u5prime)
