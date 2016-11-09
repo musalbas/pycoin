@@ -230,3 +230,13 @@ class SegwitTest(unittest.TestCase):
             1,
             0
         )
+        print(tx_s7.txs_in[0])
+
+    def test_segwit_ui(self):
+        # p2wpkh
+        from pycoin.ui import script_obj_from_address
+        from pycoin.tx.pay_to.ScriptPayToAddressWit import ScriptPayToAddressWit
+        address = 'p2xtZoXeX5X8BP8JfFhQK2nD3emtjch7UeFm'
+        s = script_obj_from_address(address)
+        self.assertIsInstance(s, ScriptPayToAddressWit)
+        self.assertEqual(address, s.address())

@@ -1,3 +1,5 @@
+from pycoin.intbytes import byte_to_int
+
 from ..script import tools
 
 from ... import encoding
@@ -12,7 +14,14 @@ from .ScriptType import ScriptType
 class ScriptPayToAddressWit(ScriptType):
     TEMPLATE = tools.compile("OP_0 OP_PUBKEYHASH")
 
-    def __init__(self, hash160):
+    def __init__(self, version, hash160):
+        assert len(version) == 1
+        assert isinstance(version, bytes)
+        assert len(hash160) == 20
+        assert isinstance(hash160, bytes)
+        version_int = byte_to_int(version[0])
+        assert 0 <= version_int <= 16
+        self.version = version_int
         self.hash160 = hash160
         self._address = None
         self._script = None
@@ -22,15 +31,15 @@ class ScriptPayToAddressWit(ScriptType):
         r = cls.match(script)
         if r:
             hash160 = r["PUBKEYHASH_LIST"][0]
-            s = cls(hash160)
+            s = cls(b'\0', hash160)
             return s
         raise ValueError("bad script")
 
     def script(self):
         if self._script is None:
             # create the script
-            STANDARD_SCRIPT_OUT = "OP_0 %s"
-            script_text = STANDARD_SCRIPT_OUT % b2h(self.hash160)
+            STANDARD_SCRIPT_OUT = "OP_%d %s"
+            script_text = STANDARD_SCRIPT_OUT % (self.version, b2h(self.hash160))
             self._script = tools.compile(script_text)
         return self._script
 
@@ -69,12 +78,13 @@ class ScriptPayToAddressWit(ScriptType):
 
     def info(self, netcode=None):
         def address_f(netcode=netcode):
-            from pycoin.networks import address_prefix_for_netcode
+            from pycoin.networks import address_wit_prefix_for_netcode
             from pycoin.networks.default import get_current_netcode
             if netcode is None:
                 netcode = get_current_netcode()
-            address_prefix = address_prefix_for_netcode(netcode)
-            address = encoding.hash160_sec_to_bitcoin_address(self.hash160, address_prefix=address_prefix)
+            address_prefix = address_wit_prefix_for_netcode(netcode)
+            address = encoding.b2a_hashed_base58(address_prefix + b'\0\0' + self.hash160)
+            # address = encoding.hash160_sec_to_bitcoin_address(self.hash160, address_prefix=address_prefix)
             return address
         return dict(type="pay to address", address="DEPRECATED call address_f instead",
                     address_f=address_f, hash160=self.hash160, script=self._script)
