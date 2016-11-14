@@ -148,17 +148,17 @@ class Tx(object):
         warnings.simplefilter('default', DeprecationWarning)
         return cls.from_hex(hex_string)
 
-    def __init__(self, version, txs_in, txs_out, lock_time=0, unspents=[], witnesses=[]):
+    def __init__(self, version, txs_in, txs_out, lock_time=0, unspents=None, witnesses=None):
         self.version = version
         self.txs_in = txs_in
         self.txs_out = txs_out
         self.lock_time = lock_time
-        self.unspents = unspents
+        self.unspents = unspents or []
         for tx_in in self.txs_in:
             assert type(tx_in) == self.TxIn
         for tx_out in self.txs_out:
             assert type(tx_out) == self.TxOut
-        self.witnesses = witnesses
+        self.witnesses = witnesses or []
 
     def stream(self, f, blank_solutions=False, include_unspents=False, include_witness_data=True):
         """Stream a Bitcoin transaction Tx to the file-like object f."""
