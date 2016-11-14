@@ -1,3 +1,5 @@
+import hashlib
+
 from pycoin.intbytes import byte_to_int
 
 from ..script import tools
