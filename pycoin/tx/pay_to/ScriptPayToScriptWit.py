@@ -1,3 +1,5 @@
+from pycoin.intbytes import byte_to_int
+
 from ..script import tools
 
 from ...serialize import b2h
@@ -6,18 +8,23 @@ from .ScriptType import ScriptType
 
 
 class ScriptPayToScriptWit(ScriptType):
-    def __init__(self, hash256):
+    def __init__(self, version, hash256):
+        assert len(version) == 1
+        assert isinstance(version, bytes)
         assert len(hash256) == 32
         assert isinstance(hash256, bytes)
+        version_int = byte_to_int(version[0])
+        assert 0 <= version_int <= 16
+        self.version = version_int
         self.hash256 = hash256
         self._address = None
         self._script = None
 
     @classmethod
     def from_script(cls, script):
-        if script[0:2] != b'\00\x20':
+        if len(script) != 34 or script[0:2] != b'\00\x20':
             raise ValueError("bad script")
-        return cls(script[2:])
+        return cls(script[:1], script[2:])
 
     def solve(self, **kwargs):
         """

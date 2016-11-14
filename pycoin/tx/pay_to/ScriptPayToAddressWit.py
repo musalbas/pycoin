@@ -31,8 +31,9 @@ class ScriptPayToAddressWit(ScriptType):
         r = cls.match(script)
         if r:
             hash160 = r["PUBKEYHASH_LIST"][0]
-            s = cls(b'\0', hash160)
-            return s
+            if len(hash160) == 20:
+                s = cls(b'\0', hash160)
+                return s
         raise ValueError("bad script")
 
     def script(self):
