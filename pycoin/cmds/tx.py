@@ -467,6 +467,7 @@ def main():
     txs_in = []
     txs_out = []
     unspents = []
+    witnesses = []
 
     # we use a clever trick here to keep each tx_in corresponding with its tx_out
     for tx in txs:
@@ -474,11 +475,15 @@ def main():
         txs_in.extend(tx.txs_in[:smaller])
         txs_out.extend(tx.txs_out[:smaller])
         unspents.extend(tx.unspents[:smaller])
+        witnesses.extend(tx.witnesses[:smaller])
+        tx.extend_witnesses()
     for tx in txs:
         smaller = min(len(tx.txs_in), len(tx.txs_out))
         txs_in.extend(tx.txs_in[smaller:])
         txs_out.extend(tx.txs_out[smaller:])
         unspents.extend(tx.unspents[smaller:])
+        witnesses.extend(tx.witnesses[smaller:])
+        tx.extend_witnesses()
     for spendable in spendables:
         txs_in.append(spendable.tx_in())
         unspents.append(spendable)
@@ -511,7 +516,8 @@ def main():
         s = set(args.remove_tx_out)
         txs_out = [tx_out for idx, tx_out in enumerate(txs_out) if idx not in s]
 
-    tx = Tx(txs_in=txs_in, txs_out=txs_out, lock_time=lock_time, version=version, unspents=unspents)
+    tx = Tx(txs_in=txs_in, txs_out=txs_out, lock_time=lock_time,
+            version=version, unspents=unspents, witnesses=witnesses)
 
     fee = args.fee
     try:

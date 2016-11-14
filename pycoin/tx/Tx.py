@@ -189,18 +189,23 @@ class Tx(object):
 
     def as_hex(self, include_unspents=False, include_witness_data=True):
         """Return the transaction as hex."""
-        return b2h(self.as_bin(include_unspents=include_unspents, include_witness_data=include_witness_data))
+        return b2h(self.as_bin(
+            include_unspents=include_unspents, include_witness_data=include_witness_data))
 
-    def set_witness(self, tx_idx_in, witness):
+    def extend_witnesses(self):
         witnesses = self.witnesses
         while len(witnesses) < len(self.txs_in):
             witnesses.append([])
         assert len(witnesses) == len(self.txs_in)
+
+    def set_witness(self, tx_idx_in, witness):
+        self.extend_witnesses()
         for w in witness:
             assert isinstance(w, bytes)
-        witnesses[tx_idx_in] = tuple(witness)
+        self.witnesses[tx_idx_in] = tuple(witness)
 
     def has_witness_data(self):
+        self.extend_witnesses()
         return any(len(witness) > 0 for witness in self.witnesses)
 
     def hash(self, hash_type=None):
