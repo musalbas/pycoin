@@ -112,16 +112,15 @@ class Tx(object):
         for i in range(count):
             txs_out.append(class_.TxOut.parse(f))
 
-        witnesses = []
         if is_segwit:
-            for i in txs_in:
+            for tx_in in txs_in:
                 stack = []
                 count = parse_bc_int(f)
                 for i in range(count):
                     stack.append(parse_bc_string(f))
-                witnesses.append(stack)
+                tx_in.witness = stack
         lock_time, = parse_struct("L", f)
-        return class_(version, txs_in, txs_out, lock_time, witnesses=witnesses)
+        return class_(version, txs_in, txs_out, lock_time)
 
     @classmethod
     def from_bin(cls, blob):
@@ -148,7 +147,7 @@ class Tx(object):
         warnings.simplefilter('default', DeprecationWarning)
         return cls.from_hex(hex_string)
 
-    def __init__(self, version, txs_in, txs_out, lock_time=0, unspents=None, witnesses=None):
+    def __init__(self, version, txs_in, txs_out, lock_time=0, unspents=None):
         self.version = version
         self.txs_in = txs_in
         self.txs_out = txs_out
@@ -158,7 +157,6 @@ class Tx(object):
             assert type(tx_in) == self.TxIn
         for tx_out in self.txs_out:
             assert type(tx_out) == self.TxOut
-        self.witnesses = witnesses or []
 
     def stream(self, f, blank_solutions=False, include_unspents=False, include_witness_data=True):
         """Stream a Bitcoin transaction Tx to the file-like object f."""
@@ -173,7 +171,8 @@ class Tx(object):
         for t in self.txs_out:
             t.stream(f)
         if is_segwit:
-            for witness in self.witnesses:
+            for tx_in in self.txs_in:
+                witness = getattr(tx_in, "witness", [])
                 stream_struct("I", f, len(witness))
                 for w in witness:
                     stream_bc_string(f, w)
@@ -192,21 +191,11 @@ class Tx(object):
         return b2h(self.as_bin(
             include_unspents=include_unspents, include_witness_data=include_witness_data))
 
-    def extend_witnesses(self):
-        witnesses = self.witnesses
-        while len(witnesses) < len(self.txs_in):
-            witnesses.append([])
-        assert len(witnesses) == len(self.txs_in)
-
     def set_witness(self, tx_idx_in, witness):
-        self.extend_witnesses()
-        for w in witness:
-            assert isinstance(w, bytes)
-        self.witnesses[tx_idx_in] = tuple(witness)
+        self.txs_in[tx_idx_in].witness = tuple(witness)
 
     def has_witness_data(self):
-        self.extend_witnesses()
-        return any(len(witness) > 0 for witness in self.witnesses)
+        return any(len(getattr(tx_in, "witness", [])) > 0 for tx_in in self.txs_in)
 
     def hash(self, hash_type=None):
         """Return the hash for this Tx object."""
@@ -409,9 +398,7 @@ class Tx(object):
             return
 
         the_script = script_obj_from_script(tx_out_script)
-        witness = []
-        if len(self.witnesses) > tx_in_idx:
-            witness = self.witnesses[tx_in_idx]
+        witness = getattr(self.txs_in[tx_in_idx], "witness", [])
         solution = the_script.solve(
             hash160_lookup=hash160_lookup, signature_type=hash_type,
             existing_script=self.txs_in[tx_in_idx].script, existing_witness=witness,
@@ -435,9 +422,7 @@ class Tx(object):
         def signature_for_hash_type_f(hash_type, script):
             return self.signature_hash(script, tx_in_idx, hash_type)
 
-        witness = None
-        if self.witnesses:
-            witness = self.witness[tx_in_idx]
+        witness = getattr(self.txs_in[tx_in_idx], "witness", None)
         if not tx_in.verify(
                 tx_out_script, signature_for_hash_type_f, expected_hash_type, witness=witness):
             raise ValidationFailureError(
@@ -593,9 +578,7 @@ class Tx(object):
 
         signature_for_hash_type_f.witness = witness_signature_for_hash_type
 
-        witness = None
-        if self.witnesses:
-            witness = self.witnesses[tx_in_idx]
+        witness = getattr(self.txs_in[tx_in_idx], "witness", None)
 
         return tx_in.verify(tx_out_script, signature_for_hash_type_f, self.lock_time,
                             witness=witness, flags=flags, traceback_f=traceback_f)

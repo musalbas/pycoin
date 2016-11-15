@@ -25,7 +25,7 @@ class SegwitTest(unittest.TestCase):
         tx = Tx.from_hex(tx.as_hex())
         for tx_in in tx.txs_in:
             tx_in.script = b''
-        tx.witnesses = []
+            tx_in.witness = []
         return tx
 
     def check_bip143_tx(self, tx_u_hex, tx_s_hex, txs_out_value_scripthex_pair, tx_in_count, tx_out_count, version, lock_time):
@@ -179,7 +179,7 @@ class SegwitTest(unittest.TestCase):
                          "bc4d309071414bed932f98832b27b4d76dad7e6c1346f487a8fdbb8eb90307cc")
         self.assertEqual(b2h(tx_s5.hash_outputs(SIGHASH_SINGLE, 0)),
                          "9efe0c13a6b16c14a41b04ebe6a63f419bdacb2f8705b494a43063ca3cd4f708")
-        script = tx_s5.witnesses[0][-1]
+        script = tx_s5.txs_in[0].witness[-1]
         self.assertEqual(b2h(tx_s5.segwit_signature_preimage(script=script, tx_in_idx=0, hash_type=SIGHASH_ALL)),
                          "0100000074afdc312af5183c4198a40ca3c1a275b485496dd3929bca388c4b5e31f7aaa03bb13029ce7b1f559ef5e747fcac439f1455a2ec7c5f09b72290795e7066504436641869ca081e70f394c6948e8af409e18b619df2ed74aa106c1ca29787b96e01000000cf56210307b8ae49ac90a048e9b53357a2354b3334e9c8bee813ecb98e99a7e07e8c3ba32103b28f0c28bfab54554ae8c658ac5c3e0ce6e79ad336331f78c428dd43eea8449b21034b8113d703413d57761b8b9781957b8c0ac1dfe69f492580ca4195f50376ba4a21033400f6afecb833092a9a21cfdf1ed1376e58c5d1f47de74683123987e967a8f42103a6d48b1131e94ba04d9737d61acdaa1322008af9602b3b14862c07a1789aac162102d8b661b0b3302ee2f162b09e07a55ad5dfbe673a9f01d9f0c19617681024306b56aeb168de3a00000000ffffffffbc4d309071414bed932f98832b27b4d76dad7e6c1346f487a8fdbb8eb90307cc0000000001000000")
 
@@ -259,7 +259,7 @@ class SegwitTest(unittest.TestCase):
         self.check_unsigned(tx)
         sign_tx(tx, [key1.wif()])
         self.check_signed(tx)
-        self.assertEqual(len(tx.witnesses[0]), 2)
+        self.assertEqual(len(tx.txs_in[0].witness), 2)
 
         s1 = ScriptPayToAddress(key1.hash160()).script()
         address = address_for_pay_to_script_wit(s1)
