@@ -95,7 +95,6 @@ class Tx(object):
         txs_in = []
         txs_out = []
         version, = parse_struct("L", f)
-        is_segwit = False
         v = ord(f.read(1))
         is_segwit = allow_segwit and (v == 0)
         if is_segwit:
@@ -160,9 +159,9 @@ class Tx(object):
 
     def stream(self, f, blank_solutions=False, include_unspents=False, include_witness_data=True):
         """Stream a Bitcoin transaction Tx to the file-like object f."""
-        is_segwit = include_witness_data and self.has_witness_data()
+        include_witnesses = include_witness_data and self.has_witness_data()
         stream_struct("L", f, self.version)
-        if is_segwit:
+        if include_witnesses:
             f.write(b'\0\1')
         stream_struct("I", f, len(self.txs_in))
         for t in self.txs_in:
@@ -170,7 +169,7 @@ class Tx(object):
         stream_struct("I", f, len(self.txs_out))
         for t in self.txs_out:
             t.stream(f)
-        if is_segwit:
+        if include_witnesses:
             for tx_in in self.txs_in:
                 witness = getattr(tx_in, "witness", [])
                 stream_struct("I", f, len(witness))
