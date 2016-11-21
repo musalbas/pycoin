@@ -171,7 +171,7 @@ class Tx(object):
             t.stream(f)
         if include_witnesses:
             for tx_in in self.txs_in:
-                witness = getattr(tx_in, "witness", [])
+                witness = tx_in.witness
                 stream_struct("I", f, len(witness))
                 for w in witness:
                     stream_bc_string(f, w)
@@ -194,7 +194,7 @@ class Tx(object):
         self.txs_in[tx_idx_in].witness = tuple(witness)
 
     def has_witness_data(self):
-        return any(len(getattr(tx_in, "witness", [])) > 0 for tx_in in self.txs_in)
+        return any(len(tx_in.witness) > 0 for tx_in in self.txs_in)
 
     def hash(self, hash_type=None):
         """Return the hash for this Tx object."""
@@ -397,10 +397,9 @@ class Tx(object):
             return
 
         the_script = script_obj_from_script(tx_out_script)
-        witness = getattr(self.txs_in[tx_in_idx], "witness", [])
         solution = the_script.solve(
             hash160_lookup=hash160_lookup, signature_type=hash_type,
-            existing_script=self.txs_in[tx_in_idx].script, existing_witness=witness,
+            existing_script=self.txs_in[tx_in_idx].script, existing_witness=tx_in.witness,
             script_to_hash=script_to_hash, signature_for_hash_type_f=signature_for_hash_type_f, **kwargs)
         return solution
 
@@ -421,9 +420,7 @@ class Tx(object):
         def signature_for_hash_type_f(hash_type, script):
             return self.signature_hash(script, tx_in_idx, hash_type)
 
-        witness = getattr(self.txs_in[tx_in_idx], "witness", None)
-        if not tx_in.verify(
-                tx_out_script, signature_for_hash_type_f, expected_hash_type, witness=witness):
+        if not tx_in.verify(tx_out_script, signature_for_hash_type_f, expected_hash_type):
             raise ValidationFailureError(
                 "just signed script Tx %s TxIn index %d did not verify" % (
                     b2h_rev(tx_in.previous_hash), tx_in_idx))
@@ -577,10 +574,8 @@ class Tx(object):
 
         signature_for_hash_type_f.witness = witness_signature_for_hash_type
 
-        witness = getattr(self.txs_in[tx_in_idx], "witness", None)
-
         return tx_in.verify(tx_out_script, signature_for_hash_type_f, self.lock_time,
-                            witness=witness, flags=flags, traceback_f=traceback_f)
+                            flags=flags, traceback_f=traceback_f)
 
     def sign(self, hash160_lookup, hash_type=None, **kwargs):
         """
