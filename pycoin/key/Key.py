@@ -5,6 +5,7 @@ from pycoin.encoding import EncodingError, a2b_hashed_base58, \
     sec_to_public_pair, secret_exponent_to_wif
 from pycoin.key.validate import netcode_and_type_for_data
 from pycoin.networks import address_prefix_for_netcode, wif_prefix_for_netcode
+from pycoin.networks.default import get_current_netcode
 from pycoin.serialize import b2h
 from pycoin.tx.script.der import sigencode_der, sigdecode_der
 from pycoin import intbytes
@@ -20,7 +21,7 @@ class InvalidSecretExponentError(ValueError):
 
 class Key(object):
     def __init__(self, secret_exponent=None, public_pair=None, hash160=None,
-                 prefer_uncompressed=None, is_compressed=True, is_pay_to_script=False, netcode='BTC'):
+                 prefer_uncompressed=None, is_compressed=True, is_pay_to_script=False, netcode=None):
         """
         secret_exponent:
             a long representing the secret exponent
@@ -44,6 +45,8 @@ class Key(object):
         prefer_uncompressed, is_compressed (booleans) are optional.
         """
 
+        if netcode is None:
+            netcode = get_current_netcode()
         if [secret_exponent, public_pair, hash160].count(None) != 2:
             raise ValueError("exactly one of secret_exponent, public_pair, hash160 must be passed.")
         if prefer_uncompressed is None:
@@ -82,7 +85,7 @@ class Key(object):
         """
 
         data = a2b_hashed_base58(text)
-        netcode, key_type = netcode_and_type_for_data(data)
+        netcode, key_type, length = netcode_and_type_for_data(data)
         data = data[1:]
 
         if key_type in ("pub32", "prv32"):
@@ -102,7 +105,7 @@ class Key(object):
         raise EncodingError("unknown text: %s" % text)
 
     @classmethod
-    def from_sec(class_, sec, netcode="BTC"):
+    def from_sec(class_, sec, netcode=None):
         """
         Create a key from an sec bytestream (which is an encoding of a public pair).
         """

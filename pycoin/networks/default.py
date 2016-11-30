@@ -24,8 +24,9 @@ DEFAULT_NETCODE = _netcode_for_env()
 
 
 def set_default_netcode(netcode):
+    global DEFAULT_NETCODE
     check_netcode(netcode)
-    DEFAULT_NETWORK = netcode
+    DEFAULT_NETCODE = netcode
 
 
 def set_default_netcode_for_thread(netcode):
@@ -41,4 +42,3 @@ def get_current_netcode():
 
 def get_current_network():
     return network_for_netcode(get_current_netcode())
-

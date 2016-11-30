@@ -2,6 +2,8 @@ import re
 import threading
 import warnings
 
+from pycoin.networks.default import get_current_netcode
+
 from .bitcoind import BitcoindProvider
 from .blockexplorer import BlockExplorerProvider
 from .blockchain_info import BlockchainInfoProvider
@@ -55,7 +57,7 @@ def spendables_for_address(bitcoin_address, netcode, format=None):
     return []
 
 
-def get_tx_db(netcode):
+def get_tx_db(netcode=None):
     lookup_methods = service_provider_methods("tx_for_tx_hash", get_default_providers_for_netcode(netcode))
     read_cache_dirs = tx_read_cache_dirs()
     writable_cache_dir = tx_writable_cache_dir()
@@ -105,7 +107,9 @@ DESCRIPTOR_CRE_INIT_TUPLES = [
 ]
 
 
-def provider_for_descriptor_and_netcode(descriptor, netcode="BTC"):
+def provider_for_descriptor_and_netcode(descriptor, netcode=None):
+    if netcode is None:
+        netcode = get_current_netcode()
     for cre, f in DESCRIPTOR_CRE_INIT_TUPLES:
         m = cre.match(descriptor)
         if m:
@@ -128,7 +132,9 @@ def providers_for_netcode_from_env(netcode):
     return providers_for_config_string(config_string_for_netcode_from_env(netcode), netcode)
 
 
-def get_default_providers_for_netcode(netcode="BTC"):
+def get_default_providers_for_netcode(netcode=None):
+    if netcode is None:
+        netcode = get_current_netcode()
     if not hasattr(THREAD_LOCALS, "providers"):
         THREAD_LOCALS.providers = {}
     if netcode not in THREAD_LOCALS.providers:
