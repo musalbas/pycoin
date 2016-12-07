@@ -126,20 +126,20 @@ def make_f(tx, flags, comments, expect_ok=True):
             f = open("tx-%s-%x-%s.bin" % (tx.id(), flags, "ok" if expect_ok else "bad"), "wb")
             f.write(tx.as_bin(include_unspents=True))
             f.close()
-            self.fail("fail on %s because of %s with hex %s: %s" % (tx.id(), why, tx_hex, comments))
-    if DEBUG_TX_ID_LIST and tx.id() not in DEBUG_TX_ID_LIST:
-        test_f = lambda self: 0
+            self.fail("fail on %s because of %s with hex %s: %s" % (tx.w_id(), why, tx_hex, comments))
+    if DEBUG_TX_ID_LIST and tx.w_id() not in DEBUG_TX_ID_LIST:
+        return lambda self: 0
     return test_f
 
 
 def inject():
     for idx, (tx, flags, comments) in enumerate(txs_from_json(TX_VALID_JSON)):
-        name_of_f = "test_valid_%02d_%s" % (idx, tx.id())
+        name_of_f = "test_valid_%02d_%s" % (idx, tx.w_id())
         setattr(TestTx, name_of_f, make_f(tx, flags, comments))
         print("adding %s" % name_of_f)
 
     for idx, (tx, flags, comments) in enumerate(txs_from_json(TX_INVALID_JSON)):
-        name_of_f = "test_invalid_%02d_%s" % (idx, tx.id())
+        name_of_f = "test_invalid_%02d_%s" % (idx, tx.w_id())
         setattr(TestTx, name_of_f, make_f(tx, flags, comments, expect_ok=False))
         print("adding %s" % name_of_f)
 
