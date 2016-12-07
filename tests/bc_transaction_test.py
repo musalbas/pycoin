@@ -80,7 +80,7 @@ def txs_from_json(path):
             assert len(tvec) == 3
             prevouts = tvec[0]
             for prevout in prevouts:
-                assert len(prevout) == 3
+                assert len(prevout) in (3, 4)
 
             tx_hex = tvec[1]
 

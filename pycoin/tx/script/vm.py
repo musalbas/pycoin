@@ -38,10 +38,11 @@ from . import ScriptError
 
 from .check_signature import op_checksig, op_checkmultisig
 from .flags import (
+    SEQUENCE_LOCKTIME_DISABLE_FLAG,
     VERIFY_P2SH, VERIFY_DISCOURAGE_UPGRADABLE_NOPS, VERIFY_MINIMALDATA,
     VERIFY_SIGPUSHONLY, VERIFY_CHECKLOCKTIMEVERIFY, VERIFY_CLEANSTACK,
-    # VERIFY_CHECKSEQUENCEVERIFY,
-    VERIFY_WITNESS, VERIFY_DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM
+    VERIFY_CHECKSEQUENCEVERIFY, VERIFY_WITNESS,
+    VERIFY_DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM
 )
 from .microcode import MICROCODE_LOOKUP
 from .tools import get_opcode, bin_script, bool_from_script_bytes, int_from_script_bytes
@@ -237,6 +238,24 @@ def eval_script(script, signature_for_hash_type_f, lock_time, expected_hash_type
                     raise ScriptError("eras differ in CHECKLOCKTIMEVERIFY")
                 if max_lock_time > lock_time:
                     raise ScriptError("nLockTime too soon")
+                continue
+
+            if opcode == opcodes.OP_CHECKSEQUENCEVERIFY:
+                if not (flags & VERIFY_CHECKSEQUENCEVERIFY):
+                    if (flags & VERIFY_DISCOURAGE_UPGRADABLE_NOPS):
+                        raise ScriptError("discouraging nops")
+                    continue
+                if len(stack) < 1:
+                    raise ScriptError("empty stack on CHECKSEQUENCEVERIFY")
+                if len(stack[-1]) > 5:
+                    raise ScriptError("script number overflow")
+                sequence_cmp = int_from_script_bytes(stack[-1])
+                if sequence_cmp < 0:
+                    raise ScriptError("top stack item negative on CHECKSEQUENCEVERIFY")
+                if sequence_cmp & SEQUENCE_LOCKTIME_DISABLE_FLAG:
+                    continue
+                # do the actual check
+                # TODO: finish this
                 continue
 
             # BRAIN DAMAGE -- does it always get down here for each verify op? I think not

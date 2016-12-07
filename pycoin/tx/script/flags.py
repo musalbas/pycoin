@@ -64,3 +64,13 @@ VERIFY_MINIMALIF = (1 << 13)
 
 # Signature(s) must be empty vector if an CHECK(MULTI)SIG operation failed
 VERIFY_NULLFAIL = (1 << 14)
+
+
+# If this flag set, sequence is NOT interpreted as a
+# relative lock-time.
+SEQUENCE_LOCKTIME_DISABLE_FLAG = (1 << 31)
+
+# If sequence encodes a relative lock-time and this flag
+# is set, the relative lock-time has units of 512 seconds,
+# otherwise it specifies blocks with a granularity of 1.
+SEQUENCE_LOCKTIME_TYPE_FLAG = (1 << 22)
