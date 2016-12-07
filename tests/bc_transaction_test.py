@@ -82,10 +82,6 @@ def txs_from_json(path):
             for prevout in prevouts:
                 assert len(prevout) in (3, 4)
 
-            coin_value = 1000000
-            if len(prevout) == 4:
-                coin_value = prevout[3]
-
             tx_hex = tvec[1]
 
             flags = parse_flags(tvec[2])
@@ -98,6 +94,9 @@ def txs_from_json(path):
             spendable_db = {}
             blank_spendable = Spendable(0, b'', b'\0' * 32, 0)
             for prevout in prevouts:
+                coin_value = 1000000
+                if len(prevout) == 4:
+                    coin_value = prevout[3]
                 spendable = Spendable(coin_value=coin_value,
                                       script=compile(prevout[2]),
                                       tx_hash=h2b_rev(prevout[0]), tx_out_index=prevout[1])
