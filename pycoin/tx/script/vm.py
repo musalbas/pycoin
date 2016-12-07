@@ -324,7 +324,7 @@ def witness_program_version(script):
 
 def verify_witness_program(
         witness, version, script_signature, flags, signature_for_hash_type_f,
-        lock_time, expected_hash_type, traceback_f):
+        lock_time, expected_hash_type, traceback_f, tx_sequence, tx_version):
     if version == 0:
         l = len(script_signature)
         if l == 32:
@@ -397,7 +397,7 @@ def verify_script(script_signature, script_public_key, signature_for_hash_type_f
                 if not verify_witness_program(
                         witness, witness_version, witness_program, flags,
                         signature_for_hash_type_f, lock_time, expected_hash_type,
-                        traceback_f):
+                        traceback_f, tx_sequence, tx_version):
                     return False
                 return True
 
@@ -408,7 +408,8 @@ def verify_script(script_signature, script_public_key, signature_for_hash_type_f
         check_script_push_only(script_signature)
         return verify_script(alt_script_signature, alt_script_public_key, signature_for_hash_type_f,
                              lock_time, flags & ~VERIFY_P2SH, expected_hash_type=expected_hash_type,
-                             traceback_f=traceback_f, witness=witness)
+                             traceback_f=traceback_f, witness=witness,
+                             tx_sequence=tx_sequence, tx_version=tx_version)
 
     if flags & VERIFY_CLEANSTACK and len(stack) != 1:
         raise ScriptError("stack not clean after evaulation")
