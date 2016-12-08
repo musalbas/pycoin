@@ -38,8 +38,8 @@ def build_credit_tx(script_out_bin, coin_value=0):
 
 def build_spending_tx(script_in_bin, credit_tx):
     txs_in = [TxIn(credit_tx.hash(), 0, script_in_bin, sequence=4294967295)]
-    txs_out = [TxOut(0, b'')]
-    spend_tx = Tx(credit_tx.txs_out[0].coin_value, txs_in, txs_out, unspents=credit_tx.tx_outs_as_spendable())
+    txs_out = [TxOut(credit_tx.txs_out[0].coin_value, b'')]
+    spend_tx = Tx(1, txs_in, txs_out, unspents=credit_tx.tx_outs_as_spendable())
     return spend_tx
 
 
@@ -99,7 +99,7 @@ def make_script_test(script_in, script_out, flags_string, comment, expected, coi
     flags = parse_flags(flags_string)
     def f(self):
         try:
-            credit_tx = build_credit_tx(script_out_bin)
+            credit_tx = build_credit_tx(script_out_bin, coin_value)
             spend_tx = build_spending_tx(script_in_bin, credit_tx)
             spend_tx.txs_in[0].witness = script_witness_bin
             r = spend_tx.is_signature_ok(tx_in_idx=0, flags=flags)
