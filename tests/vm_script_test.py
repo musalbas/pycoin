@@ -87,6 +87,7 @@ def make_test(script_in, script_out, flags_string, comment, expect_valid=True):
         except:
             r = -1
         if r != expect_valid:
+            expected = "PASS" if expect_valid else "FAIL"
             dump_failure_info(spend_tx, script_in, script_out, flags, flags_string, expected, comment)
         self.assertEqual(r, expect_valid)
     return f
