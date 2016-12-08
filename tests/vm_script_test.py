@@ -39,7 +39,7 @@ def build_credit_tx(script_out_bin, coin_value=0):
 def build_spending_tx(script_in_bin, credit_tx):
     txs_in = [TxIn(credit_tx.hash(), 0, script_in_bin, sequence=4294967295)]
     txs_out = [TxOut(0, b'')]
-    spend_tx = Tx(1, txs_in, txs_out, unspents=credit_tx.tx_outs_as_spendable())
+    spend_tx = Tx(credit_tx.txs_out[0].coin_value, txs_in, txs_out, unspents=credit_tx.tx_outs_as_spendable())
     return spend_tx
 
 
@@ -90,7 +90,7 @@ def make_test(script_in, script_out, flags_string, comment, expect_valid=True):
 def make_script_test(script_in, script_out, flags_string, comment, expected, coin_value, script_witness):
     script_in_bin = compile(script_in)
     script_out_bin = compile(script_out)
-    script_witness_bin = [compile(w) for w in script_witness]
+    script_witness_bin = [h2b(w) for w in script_witness]
     flags = parse_flags(flags_string)
     def f(self):
         try:
