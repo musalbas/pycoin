@@ -361,6 +361,9 @@ def verify_witness_program(
     if len(stack) != 1:
         raise ScriptError("stack not clean after evaulation")
 
+    if len(stack) != 1:
+        raise ScriptError("stack not clean after evaulation")
+
     return len(stack) > 0 and bool_from_script_bytes(stack[-1])
 
 
@@ -417,6 +420,9 @@ def verify_script(script_signature, script_public_key, signature_for_hash_type_f
                              lock_time, flags & ~VERIFY_P2SH, expected_hash_type=expected_hash_type,
                              traceback_f=traceback_f, witness=witness,
                              tx_sequence=tx_sequence, tx_version=tx_version)
+
+    if (flags & VERIFY_WITNESS) and not had_witness and len(witness) > 0:
+        raise ScriptError("witness unexpected")
 
     if (flags & VERIFY_WITNESS) and not had_witness and len(witness) > 0:
         raise ScriptError("witness unexpected")
