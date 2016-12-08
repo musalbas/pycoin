@@ -43,10 +43,14 @@ def build_spending_tx(script_in_bin, credit_tx):
     return spend_tx
 
 
-def dump_failure_info(spend_tx, script_in, script_out, flags, comment):
+def dump_failure_info(spend_tx, script_in, script_out, flags, flags_string, expected, comment):
     return
-    print(script_in)
-    print(script_out)
+    print()
+    print(flags_string)
+    print(expected)
+    print(comment)
+    print(disassemble(compile(script_in)))
+    print(disassemble(compile(script_out)))
     from pycoin.serialize import b2h
     def tbf(*args):
         pc, opcode, data, stack, altstack, is_signature, is_condition = args
@@ -57,11 +61,11 @@ def dump_failure_info(spend_tx, script_in, script_out, flags, comment):
         print("%s %s\n  %3x  %s" % (stack, altstack, pc, opd))
         import pdb
         pdb.set_trace()
+    print("test failed: '%s' '%s' : %s  %s" % (script_in, script_out, comment, flags_string))
     try:
         r = spend_tx.is_signature_ok(tx_in_idx=0, traceback_f=tbf, flags=flags)
     except Exception as ex:
         print(ex)
-    print("test failed: '%s' '%s' : %s  %s" % (script_in, script_out, comment, flags))
     try:
         r = spend_tx.is_signature_ok(tx_in_idx=0, traceback_f=tbf, flags=flags)
     except Exception as ex:
@@ -83,7 +87,7 @@ def make_test(script_in, script_out, flags_string, comment, expect_valid=True):
         except:
             r = -1
         if r != expect_valid:
-            dump_failure_info(spend_tx, script_in, script_out, flags, flags_string, comment)
+            dump_failure_info(spend_tx, script_in, script_out, flags, flags_string, expected, comment)
         self.assertEqual(r, expect_valid)
     return f
 
@@ -105,7 +109,7 @@ def make_script_test(script_in, script_out, flags_string, comment, expected, coi
         # for now, just deal with 0 versus nonzero
         expect_valid = (expected == 'OK')
         if r != expect_valid:
-            dump_failure_info(spend_tx, script_in, script_out, flags, flags_string, comment)
+            dump_failure_info(spend_tx, script_in, script_out, flags, flags_string, expected, comment)
         self.assertEqual(r, expect_valid)
     return f
 
