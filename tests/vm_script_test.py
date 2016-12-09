@@ -71,25 +71,6 @@ def dump_failure_info(spend_tx, script_in, script_out, flags, flags_string, expe
         import pdb; pdb.set_trace()
 
 
-def make_test(script_in, script_out, flags_string, comment, expect_valid=True):
-    def f(self):
-        script_in_bin = compile(script_in)
-        script_out_bin = compile(script_out)
-        flags = parse_flags(flags_string)
-        try:
-            credit_tx = build_credit_tx(script_out_bin)
-            spend_tx = build_spending_tx(script_in_bin, credit_tx)
-            r = spend_tx.is_signature_ok(tx_in_idx=0, flags=flags)
-        except ScriptError:
-            r = False
-        except:
-            r = -1
-        if r != expect_valid:
-            expected = "PASS" if expect_valid else "FAIL"
-            dump_failure_info(spend_tx, script_in, script_out, flags, flags_string, expected, comment)
-        self.assertEqual(r, expect_valid)
-    return f
-
 def make_script_test(script_in, script_out, flags_string, comment, expected, coin_value, script_witness):
     script_in_bin = compile(script_in)
     script_out_bin = compile(script_out)
