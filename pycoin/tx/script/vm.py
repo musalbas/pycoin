@@ -427,9 +427,6 @@ def verify_script(script_signature, script_public_key, signature_for_hash_type_f
     if (flags & VERIFY_WITNESS) and not had_witness and len(witness) > 0:
         raise ScriptError("witness unexpected")
 
-    if (flags & VERIFY_WITNESS) and not had_witness and len(witness) > 0:
-        raise ScriptError("witness unexpected")
-
     if flags & VERIFY_CLEANSTACK and len(stack) != 1:
         raise ScriptError("stack not clean after evaulation")
 
