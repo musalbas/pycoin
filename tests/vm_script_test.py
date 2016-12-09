@@ -47,7 +47,7 @@ def dump_failure_info(spend_tx, script_in, script_out, flags, flags_string, expe
     return
     print()
     print(flags_string)
-    print(expected)
+    print("EXPECTED: %s" % expected)
     print(comment)
     print(disassemble(compile(script_in)))
     print(disassemble(compile(script_out)))
