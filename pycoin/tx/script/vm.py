@@ -42,7 +42,7 @@ from .flags import (
     VERIFY_P2SH, VERIFY_DISCOURAGE_UPGRADABLE_NOPS, VERIFY_MINIMALDATA,
     VERIFY_SIGPUSHONLY, VERIFY_CHECKLOCKTIMEVERIFY, VERIFY_CLEANSTACK,
     VERIFY_CHECKSEQUENCEVERIFY, VERIFY_WITNESS, VERIFY_MINIMALIF,
-    VERIFY_DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM
+    VERIFY_DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM, VERIFY_WITNESS_PUBKEYTYPE
 )
 from .microcode import MICROCODE_LOOKUP
 from .tools import get_opcode, bin_script, bool_from_script_bytes, int_from_script_bytes
@@ -386,17 +386,19 @@ def verify_script(script_signature, script_public_key, signature_for_hash_type_f
         check_script_push_only(script_signature)
 
     try:
-        eval_script(script_signature, signature_for_hash_type_f, lock_time, expected_hash_type,
-                    stack, traceback_f=traceback_f, flags=flags & ~VERIFY_MINIMALIF, is_signature=True,
-                    tx_sequence=tx_sequence, tx_version=tx_version)
+        eval_script(script_signature, signature_for_hash_type_f, lock_time,
+                    expected_hash_type, stack, traceback_f=traceback_f,
+                    flags=flags & ~VERIFY_MINIMALIF & ~VERIFY_WITNESS_PUBKEYTYPE,
+                    is_signature=True, tx_sequence=tx_sequence, tx_version=tx_version)
 
         if is_p2h and (flags & VERIFY_P2SH):
             signatures, alt_script_public_key = stack[:-1], stack[-1]
             alt_script_signature = bin_script(signatures)
 
-        eval_script(script_public_key, signature_for_hash_type_f, lock_time, expected_hash_type,
-                    stack, traceback_f=traceback_f, flags=flags & ~VERIFY_MINIMALIF, is_signature=False,
-                    tx_sequence=tx_sequence, tx_version=tx_version)
+        eval_script(script_public_key, signature_for_hash_type_f, lock_time,
+                    expected_hash_type, stack, traceback_f=traceback_f,
+                    flags=flags & ~VERIFY_MINIMALIF & ~VERIFY_WITNESS_PUBKEYTYPE,
+                    is_signature=False, tx_sequence=tx_sequence, tx_version=tx_version)
 
         if len(stack) == 0 or not bool_from_script_bytes(stack[-1]):
             return False
