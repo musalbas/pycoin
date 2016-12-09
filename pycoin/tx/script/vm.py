@@ -362,7 +362,7 @@ def verify_witness_program(
                 stack, traceback_f=traceback_f, flags=flags, is_signature=True,
                 tx_sequence=tx_sequence, tx_version=tx_version)
 
-    if flags & VERIFY_CLEANSTACK and len(stack) != 1:
+    if len(stack) != 1:
         raise ScriptError("stack not clean after evaulation")
 
     return len(stack) > 0 and bool_from_script_bytes(stack[-1])
