@@ -41,7 +41,7 @@ from .flags import (
     SEQUENCE_LOCKTIME_DISABLE_FLAG,
     VERIFY_P2SH, VERIFY_DISCOURAGE_UPGRADABLE_NOPS, VERIFY_MINIMALDATA,
     VERIFY_SIGPUSHONLY, VERIFY_CHECKLOCKTIMEVERIFY, VERIFY_CLEANSTACK,
-    VERIFY_CHECKSEQUENCEVERIFY, VERIFY_WITNESS,
+    VERIFY_CHECKSEQUENCEVERIFY, VERIFY_WITNESS, VERIFY_MINIMALIF,
     VERIFY_DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM
 )
 from .microcode import MICROCODE_LOOKUP
@@ -147,7 +147,11 @@ def eval_script(script, signature_for_hash_type_f, lock_time, expected_hash_type
             if opcode in (opcodes.OP_IF, opcodes.OP_NOTIF):
                 v = False
                 if all_if_true:
-                    v = bool_from_script_bytes(stack.pop())
+                    item = stack.pop()
+                    if flags & VERIFY_MINIMALIF:
+                        if item not in (b'', b'\1'):
+                            raise ScriptError("non-minimal IF")
+                    v = bool_from_script_bytes(item)
                 if opcode == opcodes.OP_NOTIF:
                     v = not v
                 if_condition_stack.append(v)
@@ -383,7 +387,7 @@ def verify_script(script_signature, script_public_key, signature_for_hash_type_f
 
     try:
         eval_script(script_signature, signature_for_hash_type_f, lock_time, expected_hash_type,
-                    stack, traceback_f=traceback_f, flags=flags, is_signature=True,
+                    stack, traceback_f=traceback_f, flags=flags & ~VERIFY_MINIMALIF, is_signature=True,
                     tx_sequence=tx_sequence, tx_version=tx_version)
 
         if is_p2h and (flags & VERIFY_P2SH):
@@ -391,7 +395,7 @@ def verify_script(script_signature, script_public_key, signature_for_hash_type_f
             alt_script_signature = bin_script(signatures)
 
         eval_script(script_public_key, signature_for_hash_type_f, lock_time, expected_hash_type,
-                    stack, traceback_f=traceback_f, flags=flags, is_signature=False,
+                    stack, traceback_f=traceback_f, flags=flags & ~VERIFY_MINIMALIF, is_signature=False,
                     tx_sequence=tx_sequence, tx_version=tx_version)
 
         if len(stack) == 0 or not bool_from_script_bytes(stack[-1]):
