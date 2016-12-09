@@ -16,8 +16,6 @@ from pycoin.tx.script.vm import eval_script
 from pycoin.tx.script.vm import verify_script
 
 
-SCRIPT_VALID_JSON = os.path.dirname(__file__) + '/data/script_valid.json'
-SCRIPT_INVALID_JSON = os.path.dirname(__file__) + '/data/script_invalid.json'
 SCRIPT_TESTS_JSON = os.path.dirname(__file__) + '/data/script_tests.json'
 
 class TestTx(unittest.TestCase):
@@ -121,17 +119,6 @@ def items_from_json(path):
                 yield i
 
 def inject():
-    for idx, (script_in, script_out, flags, comment) in enumerate(items_from_json(SCRIPT_VALID_JSON)):
-        name_of_f = "test_valid_%03d" % idx
-        setattr(TestTx, name_of_f, make_test(script_in, script_out, flags, comment))
-        print("adding %s" % name_of_f)
-
-    for idx, args in enumerate(items_from_json(SCRIPT_INVALID_JSON)):
-        (script_in, script_out, flags, comment) = args[:4]
-        name_of_f = "test_invalid_%03d" % idx
-        setattr(TestTx, name_of_f, make_test(script_in, script_out, flags, comment, expect_valid=False))
-        print("adding %s" % name_of_f)
-
     for idx, args in enumerate(items_from_json(SCRIPT_TESTS_JSON)):
         script_witness, coin_value = [], 0
         if type(args[0]) is list:
