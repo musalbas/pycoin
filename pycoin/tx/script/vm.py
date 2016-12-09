@@ -39,7 +39,6 @@ from . import ScriptError
 from .check_signature import op_checksig, op_checkmultisig
 from .flags import (
     SEQUENCE_LOCKTIME_DISABLE_FLAG, SEQUENCE_LOCKTIME_TYPE_FLAG,
-    SEQUENCE_LOCKTIME_MASK,
     VERIFY_P2SH, VERIFY_DISCOURAGE_UPGRADABLE_NOPS, VERIFY_MINIMALDATA,
     VERIFY_SIGPUSHONLY, VERIFY_CHECKLOCKTIMEVERIFY, VERIFY_CLEANSTACK,
     VERIFY_CHECKSEQUENCEVERIFY, VERIFY_WITNESS, VERIFY_MINIMALIF,
@@ -265,6 +264,9 @@ def eval_script(script, signature_for_hash_type_f, lock_time, expected_hash_type
                     raise ScriptError("CHECKSEQUENCEVERIFY: bad tx version")
                 if tx_sequence & SEQUENCE_LOCKTIME_DISABLE_FLAG:
                     raise ScriptError("CHECKSEQUENCEVERIFY: locktime disabled")
+
+                # this mask is applied to extract lock-time from the sequence field
+                SEQUENCE_LOCKTIME_MASK = 0xffff
 
                 mask = SEQUENCE_LOCKTIME_TYPE_FLAG | SEQUENCE_LOCKTIME_MASK
                 sequence_masked = sequence & mask

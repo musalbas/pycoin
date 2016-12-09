@@ -76,6 +76,3 @@ SEQUENCE_LOCKTIME_DISABLE_FLAG = (1 << 31)
 # is set, the relative lock-time has units of 512 seconds,
 # otherwise it specifies blocks with a granularity of 1.
 SEQUENCE_LOCKTIME_TYPE_FLAG = (1 << 22)
-
-# this mask is applied to extract lock-time from the sequence field
-SEQUENCE_LOCKTIME_MASK = 0xffff
