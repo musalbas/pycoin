@@ -9,6 +9,7 @@ except ImportError:
     from urllib.request import urlopen, HTTPError
     from urllib.parse import urlencode
 
+from pycoin.block import Block
 from pycoin.serialize import b2h, h2b
 from pycoin.tx import Spendable
 
@@ -65,6 +66,12 @@ class BlockchainInfoProvider(object):
             except:
                 pass
             raise ex
+
+    def block(self, hash):
+        URL = "https://blockchain.info/rawblock/%s?format=hex" % hash
+        result = urlopen(URL).read().decode("hex")
+        block = Block.parse(io.BytesIO(result))
+        return block
 
 
 def send_tx(self, tx):

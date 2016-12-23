@@ -57,6 +57,19 @@ class BlockcypherProvider(object):
         except:
             raise Exception
 
+    def block_hash_for_tx(self, tx):
+        """
+        returns the block hash for tx
+        """
+        url_append = "?token=%s" % self.api_key
+        url = self.base_url("txs/%s%s" % (b2h_rev(tx.hash()), url_append))
+        result = json.loads(urlopen(url).read().decode("utf8"))
+
+        if 'block_hash' in result:
+            return result['block_hash']
+        else:
+            return None
+
     def get_balance(self, address):
         """
         returns the balance object from blockcypher for address
