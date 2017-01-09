@@ -1,6 +1,7 @@
 import io
 import json
 import warnings
+from binascii import unhexlify
 
 try:
     from urllib2 import urlopen, HTTPError
@@ -69,7 +70,8 @@ class BlockchainInfoProvider(object):
 
     def block(self, hash):
         URL = "https://blockchain.info/rawblock/%s?format=hex" % hash
-        result = urlopen(URL).read().decode("hex")
+        result = urlopen(URL).read()
+        result = unhexlify(result)
         block = Block.parse(io.BytesIO(result))
         return block
 
